@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="https://unpkg.com/cytoscape@3.27.0/dist/cytoscape.min.js"></script>
+  <script src="https://cdn.rawgit.com/cpettitt/dagre/v0.7.4/dist/dagre.min.js"></script>
+  <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
+  <style>
+    #cy {
+      width: 800px;
+      height: 600px;
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cy"></div>
+  <script>
+    var cy = cytoscape({
+      container: document.getElementById('cy'),
+
+      elements: [
+        { data: { id: 'a' } },
+        { data: { id: 'b' } },
+        { data: { id: 'c' } },
+        { data: { id: 'd' } },
+        { data: { id: 'e' } },
+        { data: { id: 'f' } },
+        { data: { source: 'a', target: 'b' } },
+        { data: { source: 'a', target: 'c' } },
+        { data: { source: 'c', target: 'd' } },
+        { data: { source: 'c', target: 'f' } },
+        { data: { source: 'e', target: 'd' } },
+        { data: { source: 'a', target: 'e' } },
+        { data: { source: 'e', target: 'f' } }
+      ],
+
+      style: [
+        {
+          selector: 'node',
+          style: {
+            'content': 'data(id)',
+            'text-opacity': 0.5,
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'background-color': '#11479e',           
+            'shape': 'rectangle',  // Set the node shape to rectangle
+            'width': '120px',       // Set the width of the rectangle
+            'height': '60px'       // Set the height of the rectangle
+          }
+        },
+
+        {
+          selector: 'edge',
+          style: {
+            'curve-style': 'bezier',
+            'width': 4,
+            'target-arrow-shape': 'triangle',
+            'line-color': '#9dbaea',
+            'target-arrow-color': '#9dbaea'
+          }
+        }
+      ],
+
+      layout: {
+        name: 'dagre',
+        directed: true,
+        padding: 10
+
+      }
+    });
+
+    //cy.on('layoutstop', function () {
+    cy.nodes().forEach(function (node) {
+      var position = node.position();
+      console.log('Node ' + node.id() + ': ' + 'x = ' + position.x + ', y = ' + position.y);
+    });
+    cy.edges().forEach(function (edge) {
+      var sourceEndpoint = edge.sourceEndpoint();
+      var targetEndpoint = edge.targetEndpoint();
+      console.log('Edge ' + edge.id() + ':');
+      console.log('Source endpoint: x = ' + sourceEndpoint.x + ', y = ' + sourceEndpoint.y);
+      console.log('Target endpoint: x = ' + targetEndpoint.x + ', y = ' + targetEndpoint.y);
+    });
+    // });
+  </script>
+</body>
+
+</html>

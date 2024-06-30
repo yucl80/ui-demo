@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>mxGraph层次布局示例</title>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphviz.umd.js"></script>
+
+    <style>
+        #graphContainer {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <div id="graphContainer"></div>
+    <script>
+        function MyCurveBasis() { }
+
+        MyCurveBasis.prototype.apply = function (state, points, source, target) {
+            console.log("call MyCurveBasis");
+            // Copy the points to a new array
+            var basisPoints = points.slice();
+            points.length = 0;
+            // Apply curveBasis algorithm
+            var curvePoints = this.curveBasis(basisPoints);
+            for (var i = 0; i < curvePoints.length; i++) {
+                points.push(curvePoints[i]);
+            }
+            console.log(points);
+        };
+
+        MyCurveBasis.prototype.curveBasis = function (points) {
+            var n = points.length;
+            if (n < 1) {
+                return [];
+            }
+            if (n < 2) {
+                return [points[0]];
+            }
+            if (n < 3) {
+                return [points[0], points[1]];
+            }
+            var x = new Array(n);
+            var y = new Array(n);
+            for (var i = 0; i < n; i++) {
+                x[i] = points[i].x;
+                y[i] = points[i].y;
+            }
+            var basis = new Array(n - 2);
+            basis[0] = 1;
+            basis[1] = 4;
+            basis[2] = 1;
+            var gamma = new Array(n);
+            gamma[0] = 3 * (y[1] - y[0]) / (x[1] - x[0]);
+            for (var i = 1; i < n - 1; i++) {
+                gamma[i] = 3 * ((y[i + 1] - y[i]) / (x[i + 1] - x[i]) - (y[i] - y[i - 1]) / (x[i] - x[i - 1]));
+            }
+            gamma[n - 1] = 3 * (y[n - 1] - y[n - 2]) / (x[n - 1] - x[n - 2]);
+            var solution = this.tridiagonal(basis, gamma);
+            var result = [];
+            for (var i = 0; i < n - 1; i++) {
+                var x0 = x[i];
+                var x1 = x[i + 1];
+                var y0 = y[i];
+                var y1 = y[i + 1];
+                var t0 = i == 0 ? 0 : solution[i - 1];
+                var t1 = i == n - 2 ? 0 : solution[i];
+                for (var t = 0; t <= 1; t += 0.01) {
+                    var x_t = (1 - t) * x0 + t * x1;
+                    var y_t = (1 - t) * y0 + t * y1 + t * (1 - t) * ((1 - t) * t0 + t * t1);
+                    result.push(new mxPoint(x_t, y_t));
+                }
+            }
+            return result;
+        };
+
+        MyCurveBasis.prototype.tridiagonal = function (a, b) {
+            var n = a.length;
+            var c = new Array(n - 1);
+            var d = new Array(n);
+            for (var i = 0; i < n - 1; i++) {
+                c[i] = a[i + 1] / b[i];
+                b[i + 1] = b[i + 1] - c[i] * a[i + 1];
+            }
+            d[0] = 0;
+            for (var i = 1; i < n; i++) {
+                d[i] = b[i - 1] != 0 ? (a[i - 1] - d[i - 1]) / b[i - 1] : 0;
+            }
+            var x = new Array(n - 1);
+            x[n - 1] = 0;
+            for (var i = n - 2; i >= 0; i--) {
+                x[i] = d[i] - c[i] * x[i + 1];
+            }
+            return x;
+        };
+
+        // 自定义布局算法
+
+        // 创建一个新的类，继承自mxGraphLayout
+        function CustomLayout(graph) {
+            mxGraphLayout.call(this, graph);
+        }
+
+        // 继承mxGraphLayout
+        CustomLayout.prototype = new mxGraphLayout();
+        CustomLayout.prototype.constructor = CustomLayout;
+
+        // 实现自定义布局算法
+        CustomLayout.prototype.execute = function (parent) {
+            // 在这里实现你的自定义布局算法
+            // ...
+            var model = this.graph.getModel();
+
+            model.beginUpdate();
+            try {
+
+
+                var vertices = [];
+                var childCount = model.getChildCount(parent);
+
+                var dot = `digraph G {\n  graph [ rankdir=TB, ranksep=1.0,nodesep=1.0,splines=ortho ] \n   node [shape=rect] ; \n `;
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isVertex(cell)) {
+                        //console.log(cell);
+                        dot = dot + cell.id + ` [id=` + cell.id + `,shape=rect] \n`;
+                    }
+                    if (!this.isVertexIgnored(cell)) {
+                        vertices.push(cell);
+                    }
+                }
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isEdge(cell)) {
+                        //console.log(cell);
+                        dot = dot + cell.source.id + " -> " + cell.target.id + "\n";
+                    }
+                    if (!this.isVertexIgnored(cell)) {
+                        vertices.push(cell);
+                    }
+                }
+                dot = dot + " \n  }";
+                //console.log(dot);
+
+                var hpccWasm = window["@hpcc-js/wasm"];
+                var myPromise = new Promise(function (myResolve, myReject) {
+                    hpccWasm.Graphviz.load().then(graphviz => {
+                        const positions = graphviz.layout(dot, "json", "dot", { yInvert: true });
+                        const positionsObj = JSON.parse(positions);
+                        // console.log("pos:");
+                        // console.log(positionsObj);
+                        var map = new Map();
+                        positionsObj.objects.forEach(node => {
+                            if (node.pos != undefined) {
+                                // console.log(node.id + ":" + node.pos);
+                                map.set(node.id, node.pos);
+                            } else {
+                                // console.log(node.id + ":" + node.lp);
+                                map.set(node.id, node.lp);
+                            }
+
+                        });
+                        positionsObj.edges.forEach(edge => {
+                            if (edge.pos != undefined) {
+                                // console.log(edge.tail + "->" + edge.head + ":" + edge.pos);
+                            }
+
+                        });
+                        myResolve(map);
+
+                    }).catch(e => console.log(e.message));
+                });
+
+                var ref = this;
+                myPromise.then(function (v) {
+                    //console.log(v);
+                    var vertexCount = vertices.length;
+                    for (var i = 0; i < vertexCount; i++) {
+                        var cell = vertices[i];
+                        if (ref.isVertexMovable(cell)) {
+                            var pos = v.get(cell.id).split(',');
+                            ref.setVertexLocation(cell, parseInt(pos[0]), parseInt(pos[1]));
+                        }
+                    }
+                })
+
+            }
+            finally {
+                model.endUpdate();
+            }
+            // 调用父类的execute方法来完成布局
+            mxGraphLayout.prototype.execute.apply(this, arguments);
+        };
+
+        function main() {
+
+            // 创建图形容器
+            const container = document.getElementById("graphContainer");
+            const graph = new mxGraph(container);
+
+
+            // 创建自定义的连接线样式
+            var style = graph.getStylesheet().getDefaultEdgeStyle();
+            style[mxConstants.STYLE_EDGE] = mxEdgeStyle.ElbowConnector;
+            style[mxConstants.STYLE_ROUNDED] = true;
+            style[mxConstants.STYLE_CURVED] = true;
+            style[mxConstants.STYLE_EDGE_ROUTING] = mxConstants.EDGEROUTING_DEFAULT;
+            style[mxConstants.STYLE_STROKECOLOR] = "#333333";
+            style[mxConstants.STYLE_STROKEWIDTH] = "2";
+
+            // 使用MyCurveBasis算法对连接线形状进行平滑处理
+            var curveBasis = new MyCurveBasis();
+            graph.connectionHandler.addListener(mxEvent.CONNECT, function (sender, evt) {
+                console.log("call add  listener");
+                var edge = evt.getProperty("cell");
+                var state = graph.view.getState(edge);
+                var pts = state.absolutePoints;
+                var src = graph.model.getTerminal(edge, true);
+                var trg = graph.model.getTerminal(edge, false);
+                curveBasis.apply(state, pts, src, trg);
+                graph.view.updateFixedTerminalPoints(state, src, trg);
+                graph.view.updatePoints(state, pts, edge.isReversed());
+            });           
+
+            // 创建节点和边
+            const parent = graph.getDefaultParent();
+            const v1 = graph.insertVertex(parent, null, '1', 0, 0, 80, 30);
+            const v2 = graph.insertVertex(parent, null, '2', 0, 0, 80, 30);
+            const v3 = graph.insertVertex(parent, null, '3', 0, 0, 80, 30);
+            const v4 = graph.insertVertex(parent, null, '4', 0, 0, 80, 30);
+            const v5 = graph.insertVertex(parent, null, '5', 0, 0, 80, 30);
+            const v6 = graph.insertVertex(parent, null, '6', 0, 0, 80, 30);
+            const v7 = graph.insertVertex(parent, null, '7', 0, 0, 80, 30);
+            const v8 = graph.insertVertex(parent, null, '8', 0, 0, 80, 30);
+            const v9 = graph.insertVertex(parent, null, '9', 0, 0, 80, 30);
+            const v10 = graph.insertVertex(parent, null, '10', 0, 0, 80, 30);
+            const v11 = graph.insertVertex(parent, null, '11', 0, 0, 80, 30);
+            const e2 = graph.insertEdge(parent, null, '', v1, v2);
+            const e3 = graph.insertEdge(parent, null, '', v1, v3);
+            const e4 = graph.insertEdge(parent, null, '', v1, v4);
+            const e5 = graph.insertEdge(parent, null, '', v1, v5);
+            const e6 = graph.insertEdge(parent, null, '', v1, v6);
+            const e7 = graph.insertEdge(parent, null, '', v1, v7);
+            const e8 = graph.insertEdge(parent, null, '', v1, v8);
+            const e9 = graph.insertEdge(parent, null, '', v1, v9);
+            const e10 = graph.insertEdge(parent, null, '', v1, v10);
+            const e1 = graph.insertEdge(parent, null, '', v1, v11);
+            const e11 = graph.insertEdge(parent, null, '', v8, v9);
+            const e12 = graph.insertEdge(parent, null, '', v9, v10);
+            const e13 = graph.insertEdge(parent, null, '', v8, v10);
+            const e14 = graph.insertEdge(parent, null, '', v10, v9);
+            const layout = new CustomLayout(graph);
+            layout.execute(parent);
+        }
+
+        // 使用自定义布局算法
+        //myLayout(graph);
+    </script>
+</body>
+
+</html>

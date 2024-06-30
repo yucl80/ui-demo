@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>二次贝塞尔曲线示例</title>
+</head>
+<body>
+
+<svg width="500" height="500" style="border:1px solid #000;">
+  <!-- 绘制二次贝塞尔曲线 -->
+  <path d="M100,250 Q200,200 300,250" stroke="black" fill="transparent"/>
+
+  <path d="M100 450 C 200 350 300 450 400 400" stroke="black" fill="transparent"/>
+  
+  <!-- 绘制控制点和辅助线 -->
+  <circle cx="100" cy="250" r="5" fill="red"/>
+  <circle cx="200" cy="100" r="5" fill="blue"/>
+  <circle cx="300" cy="250" r="5" fill="green"/>
+  
+  <line x1="100" y1="250" x2="200" y2="100" stroke="gray"/>
+  <line x1="200" y1="100" x2="300" y2="250" stroke="gray"/>
+</svg>
+
+</body>
+</html>

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dagre D3 Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+    <script src="d3.v7.js"></script>
+    <script src="dagre-d3.js"></script>
+    <style>
+        .clusters rect {
+            fill: #00ffd0;
+            stroke: #999;
+            stroke-width: 1.5px;
+        }
+
+        text {
+            font-weight: 300;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serf;
+            font-size: 14px;
+        }
+
+        .node rect {
+            stroke: #999;
+            fill: #fff;
+            stroke-width: 1.5px;
+        }
+
+        .edgePath path {
+            stroke: #333;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <div><svg id="svg-canvas" width="1080" height="800"></svg></div>
+    <div id="graphContainer" width="1080" height="800"></div>
+    <script>
+        // 创建自定义的mxGraph扩展类
+        function CustomGraph(container) {
+            mxGraph.call(this, container);
+        }
+
+        // 继承mxGraph类
+        CustomGraph.prototype = Object.create(mxGraph.prototype);
+        CustomGraph.prototype.constructor = CustomGraph;
+
+        var moveCellsRef = mxGraph.prototype.moveCells;
+        // 重写节点移动的方法
+        CustomGraph.prototype.moveCells = function (cells, dx, dy, clone, target, evt) {
+            // 调用父类的moveCells方法
+            result = moveCellsRef.call(this, cells, dx, dy, clone, target, evt);
+
+            var geo = cells[0].geometry;
+            // 更新连线的控制点
+            this.updateEdgeControlPoints(cells, dx, dy);
+            // console.log("moveCells: " + dx + "," + dy + ":" + JSON.stringify(geo));
+            return result;
+        };
+
+        // 更新连线的控制点
+        CustomGraph.prototype.updateEdgeControlPoints = function (cells, dx, dy) {
+            var model = this.getModel();
+
+            // 遍历所有移动的节点
+            for (var i = 0; i < cells.length; i++) {
+                var cell = cells[i];
+
+                // 获取与节点相关的连线
+                var edges = model.getEdges(cell);
+
+                // 遍历连线并更新控制点
+                for (var j = 0; j < edges.length; j++) {
+                    var edge = edges[j];
+
+                    // 更新控制点位置
+                    this.updateEdgeControlPoint(cell, edge, dx, dy);
+                }
+            }
+        };
+
+        CustomGraph.prototype.getCellAbsGeo = function (cell) {
+            var geo = this.getCellGeometry(cell);
+            var x = geo.x;
+            var y = geo.y;
+
+            for (var ref = cell.parent; ref.parent; ref = ref.parent) {
+                geo = this.getCellGeometry(ref);
+                if (geo) {
+                    x = x + geo.x;
+                    y = y + geo.y;
+                }
+            }
+            return { 'x': x, 'y': y };
+        }
+
+        CustomGraph.prototype.getEdgePointOffset = function (edge) {
+            var geo;
+            var x = 0;
+            var y = 0;
+            for (var ref = edge.parent; ref.parent; ref = ref.parent) {
+                geo = this.getCellGeometry(ref);
+                if (geo) {
+                    x = x + geo.x;
+                    y = y + geo.y;
+                }
+            }
+            return { 'x': x, 'y': y };
+        }
+
+        // 更新单个连线的控制点
+        CustomGraph.prototype.updateEdgeControlPoint = function (cell, edge, dx, dy) {
+            // 获取连线的源节点和目标节点
+            var source = edge.getTerminal(true);
+            var target = edge.getTerminal(false);
+            var othCell = source;
+            if (source == cell) {
+                othCell = target;
+            }
+            var curCellGeo = this.getCellAbsGeo(cell);
+            var othCellGeo = this.getCellAbsGeo(othCell);
+            var edgeOffset = this.getEdgePointOffset(edge);
+            // 计算控制点位置
+            var geo = this.getCellGeometry(edge);
+            if (geo.points) {
+                var mxPoints = [];
+                var points = geo.points;
+                var pointsCount = points.length;
+                if (pointsCount > 0) {
+                    var minY = points[0].y;
+                    var maxY = points[0].y;
+                    for (k = 0; k < pointsCount; k++) {
+                        var y = points[k].y + edgeOffset.y;
+                        minY = Math.min(minY, y);
+                        maxY = Math.max(maxY, y);
+                    }
+                   // console.log(edge.value + ",points:" + JSON.stringify(points));
+                   // console.log("curCellGeo: " + curCellGeo.x + "," + curCellGeo.y + ";" + dx + "," + dy);
+                   // console.log("othCellGeo: " + othCell.id + "  : " + othCellGeo.x + "," + othCellGeo.y + ";" + dx + "," + dy);
+
+                    for (k = 0; k < pointsCount; k++) {
+                        var p = points[k];
+                        var ctlx = p.x + edgeOffset.x + dx;
+                        var ctly = p.y + edgeOffset.y;
+                        var ny = p.y;
+                        //当控制点都在source的上方时，排除cell下方的控制点
+                       // console.log("log " + curCellGeo.y + " : " + minY + " : " + maxY);
+                        var keep = true;
+                        if (curCellGeo.y - dy >= maxY) {
+                            // console.log("top:" + ctly + " : " + (curCellGeo.y + dy));
+                            if (ctly >= curCellGeo.y + dy) {
+                                keep = false;
+                            }
+                        }
+                        if (curCellGeo.y + cell.geometry.height - dy <= maxY) {
+                            // console.log("top:" + ctly + " : " + (curCellGeo.y + dy));
+                            if (ctly <= curCellGeo.y + cell.geometry.height) {
+                                keep = false;
+                            }
+                            if (dy < 0) {
+                                ny = p.y + dy;
+                            }
+                        }
+                        if (ctlx >= curCellGeo.x && ctlx <= curCellGeo + cell.geometry.width && ctly >= curCellGeo.y && ctly <= curCellGeo.y + cell.geometry.height) {
+                            keep = false;
+                        }
+                        if (ctlx >= othCellGeo.x && ctlx <= othCellGeo.x + othCell.geometry.width && ctly >= othCellGeo.y && ctly <= othCellGeo.y + othCell.geometry.height) {
+                            keep = false;
+                        }
+                        if (keep) {
+                            mxPoints.push(new mxPoint(p.x + dx, ny));
+                        }
+
+
+                    }
+                    // 更新控制点位置
+                    geo.points = mxPoints;
+                    this.getModel().setGeometry(edge, geo);
+
+                }
+            }
+        };
+
+
+        function CustomLayout(graph) {
+            mxGraphLayout.call(this, graph);
+        }
+
+        // 继承mxGraphLayout
+        CustomLayout.prototype = new mxGraphLayout();
+        CustomLayout.prototype.constructor = CustomLayout;
+
+        // 实现自定义布局算法
+        CustomLayout.prototype.execute = function (parent) {
+            // 在这里实现你的自定义布局算法
+            // ...
+            var model = this.graph.getModel();
+
+            model.beginUpdate();
+            try {
+
+
+                var childCount = model.getChildCount(parent);
+
+                var g = new dagreD3.graphlib.Graph({ compound: true, multigraph: true })
+                    .setGraph({ rankdir: "TB", nodesep: 50, ranksep: 50, edgesep: 10 })
+                    .setDefaultEdgeLabel(function () { return {}; });
+
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isVertex(cell)) {
+                        g.setNode(cell.id, { label: cell.value, width: cell.geometry.width, height: cell.geometry.height, labelStyle: "font-weight: bold" });
+                        //console.log("Cell " + cell.id + ": " + JSON.stringify(cell.geometry));
+                        var cc = cell.getChildCount();
+                        if (cc > 0) {
+                            for (var j = 0; j < cc; j++) {
+                                var childCell = cell.getChildAt(j);
+                                if (model.isVertex(childCell)) {
+                                    g.setNode(childCell.id, { label: childCell.value, width: childCell.geometry.width, height: childCell.geometry.height, style: "fill: #5f9488" });
+                                    g.setParent(childCell.id, cell.id);
+                                    //console.log("Child Cell " + childCell.id + ": " + JSON.stringify(childCell.geometry));
+                                } else if (model.isEdge(childCell)) {
+                                    g.setEdge(childCell.source.id, childCell.target.id, { label: childCell.value, labelpos: 'c', id: childCell.id, curve: d3.curveBasis });
+                                }
+
+                            }
+
+                        }
+
+                    } else if (model.isEdge(cell)) {
+                        //console.log(cell);
+                        g.setEdge(cell.source.id, cell.target.id, { label: cell.value, labelpos: 'c', id: cell.id, curve: d3.curveBasis });
+                    }
+
+                }
+
+                // console.log("g " + ": " + JSON.stringify(g));
+                //console.log(g);
+
+                g.nodes().forEach(function (v) {
+                    var node = g.node(v);
+                    // Round the corners of the nodes
+                    node.rx = node.ry = 5;
+                });
+
+
+                var layoutf = dagreD3.dagre.layout;
+                layoutf(g);
+                // dagre.layout(g);
+
+                var nodeMap = new Map();
+                var edgeMap = new Map();
+
+
+
+                // Create the renderer
+                var render = new dagreD3.render();
+
+
+                // Set up an SVG group so that we can translate the final graph.
+                var svg = d3.select("svg"),
+                    svgGroup = svg.append("g");
+
+                // Run the renderer. This is what draws the final graph.
+                render(d3.select("svg g"), g);
+
+                g.nodes().forEach(function (v) {
+                    var node = g.node(v);
+                    nodeMap.set(v, g.node(v));
+                    //console.log("After Node " + v + ": " + JSON.stringify(g.node(v)));
+                });
+
+                g.edges().forEach(function (e) {
+                    //console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(g.edge(e)));
+                    var edge = g.edge(e);
+                    edgeMap.set(edge.id, edge.points);
+                });
+
+                // console.log(edgeMap);
+
+                // Center the graph
+                var xCenterOffset = (svg.attr("width") - g.graph().width) / 2;
+                svgGroup.attr("transform", "translate(" + xCenterOffset + ", 20)");
+                svg.attr("height", g.graph().height + 40);
+                /*
+                                g.nodes().forEach(function (v) {
+                                    var node = g.node(v);
+                                    if (node.elem != undefined) {
+                                        var box = node.elem.getBBox();
+                                        //console.log('Node BOX :' + v + ': (' + box.width + ',' + box.height + ')');
+                                    } else {
+                                        //  console.log("node elem undefined " + node);
+                                    }
+                
+                                });*/
+
+
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isVertex(cell)) {
+                        var cc = cell.getChildCount();
+                        if (cc > 0) {
+                            var pos = nodeMap.get(cell.id);
+                            // console.log("Cell " + cell.id + ": " + JSON.stringify(pos));
+
+                            var gx = pos.x - pos.width / 2 + 40;
+                            var gy = pos.y - pos.height / 2 - 20;
+                            var gw = pos.width + 80;
+                            var gh = pos.height + 120
+                            var geo = new mxGeometry(gx, gy, gw, gh);
+                            this.graph.resizeCell(cell, geo);
+                            // this.setVertexLocation(cell, gx, gy);
+
+                            for (var j = 0; j < cc; j++) {
+                                var childCell = cell.getChildAt(j);
+                                if (model.isVertex(childCell)) {
+                                    var pos1 = nodeMap.get(childCell.id);
+                                    // this.setVertexLocation(childCell, pos1.x-(pos.x- pos.width/2)-60, pos1.y- (pos.y - pos.height/2)-50 );
+                                    var geo = new mxGeometry(pos1.x - gx, pos1.y - gy + 10, pos1.width + 20, pos1.height + 20);
+                                    this.graph.resizeCell(childCell, geo);
+                                    // this.setVertexLocation(childCell, pos1.x, pos1.y );
+
+
+                                } else if (model.isEdge(childCell)) {
+                                    var geo = this.graph.getCellGeometry(childCell);
+                                    var points = edgeMap.get(childCell.id);
+                                    var pointsCount = points.length;
+                                    var mxPoints = [];
+                                    for (k = 0; k < pointsCount; k++) {
+                                        var p = points[k];
+                                        mxPoints.push(new mxPoint(p.x - gx + 80, p.y - gy + 40));
+                                    }
+                                    geo.points = mxPoints;
+                                    //console.log(childCell.id + " :points:" + JSON.stringify(mxPoints));
+                                    this.graph.getModel().setGeometry(childCell, geo);
+                                }
+
+                            }
+
+                        } else {
+                            var pos = nodeMap.get(cell.id);
+                            // console.log("Node " + cell.id + ": " + JSON.stringify(pos));
+                            var geo = new mxGeometry(pos.x - 10, pos.y + 10, pos.width + 20, pos.height + 20);
+                            this.graph.resizeCell(cell, geo);
+                        }
+
+
+                    } else if (model.isEdge(cell)) {
+                        //console.log(JSON.stringify(cell.id));
+                        var geo = this.graph.getCellGeometry(cell);
+                        var points = edgeMap.get(cell.id);
+                        var pointsCount = points.length;
+                        var mxPoints = [];
+                        for (n = 0; n < pointsCount; n++) {
+                            var p = points[n];
+                            mxPoints.push(new mxPoint(p.x + 80, p.y + 40));
+                        }
+                        geo.points = mxPoints;
+                        // console.log(cell.id + " :points:" + JSON.stringify(mxPoints));
+                        this.graph.getModel().setGeometry(cell, geo);
+
+                    }
+
+                }
+
+            }
+            finally {
+                model.endUpdate();
+            }
+            // 调用父类的execute方法来完成布局
+            mxGraphLayout.prototype.execute.apply(this, arguments);
+        };
+
+
+        mxEdgeStyle.CurveBasisStyle = function (state, source, target, points, result) {
+            var pts = state.absolutePoints;
+            var p0 = pts[0];
+            var pe = pts[pts.length - 1];
+
+            if (points != null && points.length > 0) {
+                var pt = points[0];
+                var n = points.length;
+
+                // Add the first point to the result
+                result.push(pt);
+
+                // Add the intermediate points as bezier handles
+                for (var i = 1; i < n; i++) {
+                    var tmp = points[i];
+                    var dx = (tmp.x - pt.x) / 4;
+                    var dy = (tmp.y - pt.y) / 4;
+
+                    result.push(new mxPoint(pt.x + dx, pt.y + dy));
+                    result.push(new mxPoint(tmp.x - dx, tmp.y - dy));
+                    result.push(tmp);
+
+                    pt = tmp;
+                }
+            }
+
+            // Add the last point to the result
+            result.push(pe);
+
+            /*
+            var view = state.view;
+            var pt = (points != null && points.length > 0) ? points[0] : null;
+            var pts = state.absolutePoints;
+            var p0 = pts[0];
+            var pe = pts[pts.length - 1];
+
+            if (pt != null) {
+                var dx = pt.x - p0.x;
+                var dy = pt.y - p0.y;
+
+                result.push(new mxPoint(pt.x - dx / 2, pt.y - dy / 2));
+                result.push(pt);
+                result.push(new mxPoint(pt.x + dx / 2, pt.y + dy / 2));
+            }
+            else {
+                result.push(new mxPoint(pe.x, pe.y));
+            }*/
+        };
+        mxStyleRegistry.putValue('curveBasisStyle', mxEdgeStyle.CurveBasisStyle);
+
+        function main() {
+
+            // 创建图形容器
+            const container = document.getElementById("graphContainer");
+            const graph = new CustomGraph(container);
+
+
+            // 获取图形样式
+            var style = graph.getStylesheet().getDefaultEdgeStyle();
+
+            // 设置edge为曲线
+            //style[mxConstants.STYLE_EDGE] = mxEdgeStyle.ElbowConnector;
+            //style[mxConstants.STYLE_CURVED] = 1;
+            // style[mxConstants.STYLE_DASHED] = 1;
+            style[mxConstants.STYLE_ROUNDED] = 1;
+            style[mxConstants.STYLE_SMOOTH] = 1;
+            var style = graph.getStylesheet().getDefaultEdgeStyle();
+            //  style[mxConstants.STYLE_EDGE] = mxEdgeStyle.CurveBasisStyle;
+
+            // model.setStyle(edge, 'edgeStyle=myEdgeStyle');
+            // 创建节点和边
+
+            const parent = graph.getDefaultParent();
+            const person = graph.insertVertex(parent, 'person', 'person', 0, 0, 144, 40);
+            const Mail = graph.insertVertex(parent, 'Mail', 'Mail System', 0, 0, 144, 40);
+            const MBS = graph.insertVertex(parent, 'MBS', 'Mainframe System', 0, 0, 144, 40);
+            const bs = graph.insertVertex(parent, 'bs', 'Bank System', 0, 0, 144, 40);
+            const webApp = graph.insertVertex(bs, 'webApp', 'Web App', 0, 0, 144, 40);
+            const SPA = graph.insertVertex(bs, 'SPA', 'Single-Page Application', 0, 0, 144, 40);
+            const MA = graph.insertVertex(bs, 'MA', 'Mobile Application', 0, 0, 144, 40);
+            const API = graph.insertVertex(bs, 'API', 'API Application', 0, 0, 144, 40);
+            const DB = graph.insertVertex(bs, 'DB', 'Database', 0, 0, 144, 40);
+
+            const e1 = graph.insertEdge(parent, 'Mail->person', 'send mail to', Mail, person);
+            const e2 = graph.insertEdge(parent, 'person->webApp', 'person->webApp', person, webApp);
+            const e3 = graph.insertEdge(parent, 'person->SPA', 'person->SPA', person, SPA);
+            const e4 = graph.insertEdge(parent, 'person->MA', 'person->MA', person, MA);
+            const e5 = graph.insertEdge(parent, 'SPA->API', 'SPA->API', SPA, API);
+            const e6 = graph.insertEdge(parent, 'MA->API', 'MA->API', MA, API);
+            const e7 = graph.insertEdge(parent, 'API->DB', 'API->DB', API, DB);
+            const e8 = graph.insertEdge(parent, 'API->Mail', 'API->Mail', API, Mail);
+            const e9 = graph.insertEdge(parent, 'API->MBS', 'API->MBS', API, MBS);
+            const e10 = graph.insertEdge(parent, 'webApp->SPA', 'webApp->SPA', webApp, SPA);
+
+            const layout = new CustomLayout(graph);
+            layout.execute(parent);
+
+            /*
+            var root = this.getDefaultParent(); // 获取默认的父单元格作为根单元格
+            
+                        var rootState = this.view.getState(root); // 获取根单元格的状态对象
+            
+                        var childCells = this.model.getChildCells(root); // 获取根单元格的所有子单元格
+            
+                        for (var i = 0; i < childCells.length; i++) {
+                            var childState = this.view.getState(childCells[i]); // 获取子单元格的状态对象
+                           
+                            console.log("Child Cell " + childState);
+                        }
+            */
+
+        }
+    </script>
+</body>
+
+</html>

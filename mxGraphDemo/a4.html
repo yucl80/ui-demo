@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>mxGraph层次布局示例</title>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphviz.umd.js"></script>
+
+    <style>
+        #graphContainer {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <div id="graphContainer"></div>
+    <script>
+        // 自定义布局算法
+
+        // 创建一个新的类，继承自mxGraphLayout
+        function CustomLayout(graph) {
+            mxGraphLayout.call(this, graph);
+        }
+
+        // 继承mxGraphLayout
+        CustomLayout.prototype = new mxGraphLayout();
+        CustomLayout.prototype.constructor = CustomLayout;
+
+        // 实现自定义布局算法
+        CustomLayout.prototype.execute = function (parent) {
+            // 在这里实现你的自定义布局算法
+            // ...
+            var model = this.graph.getModel();
+
+            model.beginUpdate();
+            try {
+
+
+                var vertices = [];
+                var childCount = model.getChildCount(parent);
+
+                var dot = `digraph G {\n  graph [ rankdir=TB, ranksep=1.0,nodesep=1.0,splines=ortho ] \n   node [shape=rect] ; \n `;
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isVertex(cell)) {
+                        console.log(cell);
+                        dot = dot + cell.id + ` [id=` + cell.id + `,shape=rect] \n`;
+                    }
+                    if (!this.isVertexIgnored(cell)) {
+                        vertices.push(cell);
+                    }
+                }
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isEdge(cell)) {
+                        console.log(cell);
+                        dot = dot + cell.source.id + " -> " + cell.target.id + "\n";
+                    }
+                    if (!this.isVertexIgnored(cell)) {
+                        vertices.push(cell);
+                    }
+                }
+                dot = dot + " \n { rank = source 1   8 9 10 11 12} \n }";
+                console.log(dot);
+
+                var hpccWasm = window["@hpcc-js/wasm"];
+                var myPromise = new Promise(function (myResolve, myReject) {
+                    hpccWasm.Graphviz.load().then(graphviz => {
+                        const positions = graphviz.layout(dot, "json", "dot", { yInvert: true });
+                        const positionsObj = JSON.parse(positions);
+                        console.log("pos:");
+                        console.log(positionsObj);
+                        var map = new Map();
+                        positionsObj.objects.forEach(node => {
+                            if (node.pos != undefined) {
+                                console.log(node.id + ":" + node.pos);
+                                map.set(node.id, node.pos);
+                            } else {
+                                console.log(node.id + ":" + node.lp);
+                                map.set(node.id, node.lp);
+                            }
+
+                        });
+                        positionsObj.edges.forEach(edge => {
+                            if (edge.pos != undefined) {
+                                console.log(edge.tail + "->" + edge.head + ":" + edge.pos);                               
+                            } 
+
+                        });
+                        myResolve(map);
+
+                    }).catch(e => console.log(e.message));
+                });
+
+                var ref = this;
+                myPromise.then(function (v) {
+                    console.log(v);
+                    var vertexCount = vertices.length;
+                    for (var i = 0; i < vertexCount; i++) {
+                        var cell = vertices[i];
+                        if (ref.isVertexMovable(cell)) {
+                            var pos = v.get(cell.id).split(',');
+                            ref.setVertexLocation(cell, parseInt(pos[0]), parseInt(pos[1]));
+                        }
+                    }
+                })
+
+            }
+            finally {
+                model.endUpdate();
+            }
+            // 调用父类的execute方法来完成布局
+            mxGraphLayout.prototype.execute.apply(this, arguments);
+        };
+
+        function main() {
+
+            // 创建图形容器
+            const container = document.getElementById("graphContainer");
+            const graph = new mxGraph(container);
+
+            // 创建节点和边
+            const parent = graph.getDefaultParent();
+            const v1 = graph.insertVertex(parent, null, '1', 0, 0, 80, 30);
+            const v2 = graph.insertVertex(parent, null, '2', 0, 0, 80, 30);
+            const v3 = graph.insertVertex(parent, null, '3', 0, 0, 80, 30);
+            const v4 = graph.insertVertex(parent, null, '4', 0, 0, 80, 30);
+            const v5 = graph.insertVertex(parent, null, '5', 0, 0, 80, 30);
+            const v6 = graph.insertVertex(parent, null, '6', 0, 0, 80, 30);
+            const v7 = graph.insertVertex(parent, null, '7', 0, 0, 80, 30);
+            const v8 = graph.insertVertex(parent, null, '8', 0, 0, 80, 30);
+            const v9 = graph.insertVertex(parent, null, '9', 0, 0, 80, 30);
+            const v10 = graph.insertVertex(parent, null, '10', 0, 0, 80, 30);
+            const v11 = graph.insertVertex(parent, null, '11', 0, 0, 80, 30);           
+            const e2 = graph.insertEdge(parent, null, '', v1, v2, 'edgeStyle=elbowEdge;');
+            const e3 = graph.insertEdge(parent, null, '', v1, v3, 'edgeStyle=elbowEdge;');
+            const e4 = graph.insertEdge(parent, null, '', v1, v4, 'edgeStyle=orthogonalEdge;curved=0');
+            const e5 = graph.insertEdge(parent, null, '', v1, v5, 'edgeStyle=orthogonalEdge;curved=0');
+            const e6 = graph.insertEdge(parent, null, '', v1, v6, 'edgeStyle=segmentEdge;curved=0');
+            const e7 = graph.insertEdge(parent, null, '', v1, v7, 'edgeStyle=segmentEdge;curved=0');           
+            const e8 = graph.insertEdge(parent, null, '', v1, v8, 'edgeStyle=orthogonalEdgeStyle;curved=0');            
+            const e9 = graph.insertEdge(parent, null, '', v1, v9, 'edgeStyle=sideToSideEdge;curved=0');
+            const e10 = graph.insertEdge(parent, null, '', v1, v10, 'edgeStyle=topToBottomEdge;curved=0');
+            const e1 = graph.insertEdge(parent, null, '', v1, v11, 'edgeStyle=orthogonalEdgeStyle;curved=0;');
+            const layout = new CustomLayout(graph);
+            layout.execute(parent);
+        }
+
+        // 使用自定义布局算法
+        //myLayout(graph);
+    </script>
+</body>
+
+</html>

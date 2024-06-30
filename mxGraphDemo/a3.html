@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>mxGraph层次布局示例</title>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+    <style>
+        #graphContainer {
+            height: 100%;
+            width: 100%;
+            position: absolute;
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <div id="graphContainer"></div>
+    <script>
+       
+
+        function main() {
+
+            // 创建图形容器
+            const container = document.getElementById("graphContainer");
+            const graph = new mxGraph(container);
+
+
+            // 获取图形样式
+            var style = graph.getStylesheet().getDefaultEdgeStyle();
+
+            // 设置edge为曲线
+            style[mxConstants.STYLE_EDGE] = mxEdgeStyle.ElbowConnector;
+            style[mxConstants.STYLE_CURVED] = 1;
+            style[mxConstants.STYLE_DASHED] = 1;
+            // style[mxConstants.STYLE_ROUNDED] = 1;
+            //  style[mxConstants.STYLE_SMOOTH] = 1;
+            // 创建节点和边
+            const parent = graph.getDefaultParent();
+
+
+            // 添加一个矩形组件
+            var rect = graph.insertVertex(parent, null, 'Rectangle', 20, 20, 200, 100);
+
+            // 计算透视效果
+            var x = rect.geometry.x;
+            var y = rect.geometry.y;
+            var w = rect.geometry.width;
+            var h = rect.geometry.height;
+            var scale = 0.8;
+            var perspective = 100;
+            var offset = 30;
+            var newX = x + (w * scale) / 2;
+            var newY = y + (h * scale) / 2;
+            var newW = w * scale;
+            var newH = h * scale;
+            var newZ = (newW / 2) / perspective;
+            var offsetZ = offset / newZ;
+            var newOffsetX = newX - (newW / 2) + (offsetZ * (newX - (newW / 2)));
+            var newOffsetY = newY - (newH / 2) + (offsetZ * (newY - (newH / 2)));
+
+            // 设置新的位置和大小
+            /*
+            rect.geometry.x = newOffsetX;
+            rect.geometry.y = newOffsetY;
+            rect.geometry.width = newW;
+            rect.geometry.height = newH;
+         */
+            var geo = new mxGeometry(newOffsetX, newOffsetY, newW, newH);
+            graph.resizeCell(rect, geo);
+            rect.setGeometry(geo);
+            // 设置3D效果属性
+
+            var style = graph.getCellStyle(rect);
+            style[mxConstants.STYLE_FILLCOLOR] = '#cccccc';
+            style[mxConstants.STYLE_GRADIENTCOLOR] = '#ffffff';
+            style[mxConstants.STYLE_SHADOW] = '1';
+            style[mxConstants.STYLE_SHADOWCOLOR] = '#888888';
+            style[mxConstants.STYLE_SHADOW_OFFSET_X] = '2';
+            style[mxConstants.STYLE_SHADOW_OFFSET_Y] = '2';
+            style[mxConstants.STYLE_SHADOW_OPACITY] = '0.5';
+            graph.setCellStyle(style, rect);
+
+
+
+
+            // 刷新mxGraph界面
+            graph.refresh();
+
+            // const layout = new CustomLayout(graph);
+            // layout.execute(parent);
+        }
+
+        // 使用自定义布局算法
+        //myLayout(graph);
+    </script>
+</body>
+
+</html>

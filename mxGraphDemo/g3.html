@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dagre D3 Demo</title>
+    <script src="d3.v5.min.js"></script>
+    <script src="dagre-d3.js"></script>
+    <script src="dagre.js"></script>
+    <style>
+        .clusters rect {
+            fill: #00ffd0;
+            stroke: #999;
+            stroke-width: 1.5px;
+        }
+
+        text {
+            font-weight: 300;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serf;
+            font-size: 14px;
+        }
+
+        .node rect {
+            stroke: #999;
+            fill: #fff;
+            stroke-width: 1.5px;
+        }
+
+        .edgePath path {
+            stroke: #333;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="svg-canvas" width="1080" height="800"></svg>
+    <script>
+        // Create the input graph
+        var g = new dagre.graphlib.Graph({ compound: true })
+            .setGraph({ rankdir: "TB" })
+            .setDefaultEdgeLabel(function () { return {}; });
+
+        // Here we're setting the nodes
+        g.setNode('person', { label: 'Person' ,  width: 144, height: 40});
+        g.setNode('Mail', { label: 'Mail System' ,  width: 144, height: 40});
+        g.setNode('MBS', { label: 'Mainframe System',  width: 144, height: 40 });
+
+        g.setNode('bs', { label: 'Bank System',  style: 'fill: #d3d7e8',  width: 144, height: 40 });
+
+        g.setNode('webApp', { label: 'Web App',  style: 'fill: #ffd47f',  width: 144, height: 40 });
+        g.setNode('SPA', { label: 'Single-Page Application', style: 'fill: #5f9488',  width: 144, height: 40 });
+        g.setNode('MA', { label: 'Mobile Application', style: 'fill: #5f9488;display:none',  width: 144, height: 40 });
+        g.setNode('API', { label: 'API Application', style: 'fill: #5f9488',  width: 144, height: 40 });
+        g.setNode('DB', { label: 'Database', style: 'fill: #5f9488',  width: 144, height: 40 });
+
+        // Set the parents to define which nodes belong to which cluster
+        g.setParent('webApp', 'bs');
+        g.setParent('SPA', 'bs');
+        g.setParent('MA', 'bs');
+        g.setParent('API', 'bs');
+        g.setParent('DB', 'bs');
+        g.setEdge('Mail', 'person', { label: 'send mail to', curve: d3.curveBasis });
+        // Set up edges, no special attributes.
+        g.setEdge('person', 'webApp', { label: 'use', curve: d3.curveBasis });
+        g.setEdge('person', 'SPA', { curve: d3.curveBasis });
+        g.setEdge('person', 'MA', { curve: d3.curveBasis });
+        g.setEdge('webApp', 'SPA', { curve: d3.curveBasis });
+        g.setEdge('SPA', 'API', { curve: d3.curveBasis,style:'display:block' });
+        g.setEdge('MA', 'API', { curve: d3.curveBasis });
+        g.setEdge('API', 'DB', { curve: d3.curveBasis });
+        g.setEdge('API', 'Mail', { curve: d3.curveBasis });
+        g.setEdge('API', 'MBS', {curve: d3.curveBasis});
+
+
+        g.nodes().forEach(function (v) {
+            var node = g.node(v);
+            // Round the corners of the nodes
+            node.rx = node.ry = 5;
+        });
+
+        dagre.layout(g);
+        g.nodes().forEach(function (v) {
+            console.log("Node " + v + ": " + JSON.stringify(g.node(v)));
+        });
+        g.edges().forEach(function (e) {
+            console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(g.edge(e)));
+        });
+
+        // Create the renderer
+        var render = new dagreD3.render();
+
+
+        // Set up an SVG group so that we can translate the final graph.
+        var svg = d3.select("svg"),
+            svgGroup = svg.append("g");
+
+        // Run the renderer. This is what draws the final graph.
+        render(d3.select("svg g"), g);
+
+        g.nodes().forEach(function (v) {
+            console.log(JSON.stringify(v));
+            var node = g.node(v);
+            console.log('Node ' + v + ': (' + node.x + ', ' + node.y + ')');
+        });
+
+        g.edges().forEach(function (e) {
+            console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(g.edge(e)));
+        });
+
+        // Center the graph
+        var xCenterOffset = (svg.attr("width") - g.graph().width) / 2;
+        svgGroup.attr("transform", "translate(" + xCenterOffset + ", 20)");
+        svg.attr("height", g.graph().height + 40);
+
+        g.nodes().forEach(function (v) {
+            var node = g.node(v);
+            if (node.elem != undefined) {
+                var box = node.elem.getBBox();
+                console.log('Node ' + v + ': (' + box.width + ',' + box.height + ')');
+            } else {
+                console.log("node elem undefined " + node);
+            }
+
+        });
+    </script>
+</body>
+
+</html>

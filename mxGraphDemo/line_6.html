@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>mxGraph with Cubic Bezier Curve</title>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script> -->
+    <script src="mxClient.js"></script>
+    <script src="utils.js"></script>
+    <style>
+        #graphContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="graphContainer"></div>
+    <script>
+        // 二次贝塞尔曲线（Quadratic Bezier Curve）：这种曲线有两个端点和一个控制点。在SVG中，你可以通过<path>元素的Q或q命令来创建二次贝塞尔曲线。Q命令后跟控制点的x和y坐标，然后是终点的x和y坐标。大写字母表示绝对坐标，小写字母表示相对坐标。例子：
+        // <path d="M10 10 Q 50 100 100 10" stroke="black" fill="transparent"/>
+        // 三次贝塞尔曲线（Cubic Bezier Curve）：这种曲线有两个端点和两个控制点。在SVG中，你可以通过<path>元素的C或c命令来创建三次贝塞尔曲线。C命令后跟第一个控制点的x和y坐标，第二个控制点的x和y坐标，然后是终点的x和y坐标。例子：
+        // <path d="M10 10 C 50 100 150 100 100 10" stroke="black" fill="transparent"/>
+        // Check if the browser supports HTML5 Canvas
+        if (!mxClient.isBrowserSupported()) {
+            mxUtils.error('Browser is not supported!', 200, false);
+        } else {
+            // Create the graph inside the container
+            var container = document.getElementById('graphContainer');
+            var graph = new mxGraph(container);
+
+            // Define a custom style for the cubic bezier curve
+            var style = graph.getStylesheet().getDefaultEdgeStyle();
+            // style[mxConstants.STYLE_EDGE] = mxEdgeStyle.ElbowConnector;
+            // style[mxConstants.STYLE_EDGE] = mxEdgeStyle.OrthConnector
+            // style[mxConstants.STYLE_CURVED] = 1;
+            // Insert a custom cubic bezier curve
+            var parent = graph.getDefaultParent();
+            graph.getModel().beginUpdate();
+            try {
+                var v1 = graph.insertVertex(parent, null, 'v1', 100, 200, 80, 30);
+                var v2 = graph.insertVertex(parent, null, 'v2', 100, 400, 80, 30);
+                var v3 = graph.insertVertex(parent, null, 'v3', 600, 400, 80, 30);
+                var v4 = graph.insertVertex(parent, null, 'v4', 300, 100, 80, 30);
+                var edge1 = graph.insertEdge(parent, "e1", 'e1', v1, v4);
+                var edge2 = graph.insertEdge(parent, "e2", 'e2', v1, v2);
+                var edge3 = graph.insertEdge(parent, "e3", 'e3', v4, v3);
+                var edge4 = graph.insertEdge(parent, "e4", 'e4', v2, v3);
+                var edge5 = graph.insertEdge(parent, "e5", 'e5', v2, v4);
+            } finally {
+                graph.getModel().endUpdate();
+            }
+
+            // Custom cubic bezier edge style
+            mxEdgeStyle.cubicBezierEdgeStyle = function (state, source, target, points, result) {
+                var sourcePoint = state.absolutePoints[0] ? graph.getConnectionPoint(source, state.absolutePoints[0]) : null;
+                var targetPoint = state.absolutePoints[state.absolutePoints.length - 1] ? graph.getConnectionPoint(target, state.absolutePoints[state.absolutePoints.length - 1]) : null;
+                if (!(sourcePoint && targetPoint)) {
+                    //获取连接点的坐标
+                    sourcePoint = graph.view.getFloatingTerminalPoint(state.cell, source, target, true);
+                    targetPoint = graph.view.getFloatingTerminalPoint(state.cell, target, source, false);
+                    console.log(sourcePoint);
+                    console.log(targetPoint);
+                }
+                var control1 = new mxPoint((2 * sourcePoint.x + targetPoint.x) / 3, sourcePoint.y);
+                var control2 = new mxPoint((sourcePoint.x + 2 * targetPoint.x) / 3, targetPoint.y);
+                // result.push(new mxPoint(sourcePoint.x, sourcePoint.y));
+                result.push(control1);
+                result.push(control2);
+                //  result.push(new mxPoint(targetPoint.x, targetPoint.y));
+
+            };
+            mxStyleRegistry.putValue('cubicBezierEdgeStyle', mxEdgeStyle.cubicBezierEdgeStyle);
+
+            function rotateVector(vector, angle) {
+                const [x, y] = vector;
+                const cosTheta = Math.cos(angle);
+                const sinTheta = Math.sin(angle);
+                const newX = x * cosTheta - y * sinTheta;
+                const newY = x * sinTheta + y * cosTheta;
+                return [newX, newY];
+            }
+
+            function findPoint1(x1, y1, x2, y2) {
+                // 计算向量
+                const vector = [x2 - x1, y2 - y1];
+
+                // 旋转 30 度和 -30 度
+                const angle30 = Math.PI / 6; // 30 degrees in radians
+                const angleNeg30 = -Math.PI / 6; // -30 degrees in radians
+
+                const vector30 = rotateVector(vector, angle30);
+                const vectorNeg30 = rotateVector(vector, angleNeg30);
+
+                // 计算新的点
+                const point1 = { x: x1 + vector30[0], y: y1 + vector30[1] };
+                const point2 = { x: x2 + vectorNeg30[0], y: y2 + vectorNeg30[1] };
+
+                return point1;
+            }
+
+            function findPoint2(x1, y1, x2, y2) {
+                // 计算中点坐标
+                var mid_x = (x1 + x2) / 2;
+                var mid_y = (y1 + y2) / 2;
+
+                // 计算两点之间的距离
+                var d = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+
+                // 计算目标点到(x1, y1)的距离
+                var d1 = d / (2 * Math.cos(Math.PI / 6)); // 30 degrees in radians
+
+                // 计算目标点的坐标
+                var px = mid_x + d1 * Math.sin(Math.PI / 6);
+                var py = mid_y - d1 * Math.cos(Math.PI / 6);
+
+                return { x: px, y: py };
+            }
+
+
+            function findPoint3(x1, y1, x2, y2) {
+                var controlX = x1 + Math.cos(Math.PI / 9) * (x2 - x1);
+                var controlY = y1 + Math.sin(Math.PI / 9) * (y2 - y1);
+                if (x1 === x2) {
+                    controlX = x1 + y1 * Math.sin(Math.PI / 9);
+                    controlY = y1 + (y2 - y1) / 2;
+                }
+                if (y1 === y2) {
+                    controlX = x1 + (x2 - x1) / 2;
+                    controlY = y1 + y1 * Math.sin(Math.PI / 9);
+                }
+                var control = new mxPoint(controlX, controlY);
+                return control
+            }
+
+            function findPoint4(x1, y1, x2, y2) {
+                var dx = x2 - x1;
+                var dy = y2 - y1;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+
+                // 计算圆弧的控制点，这里假设圆弧的两端的切线角度为30度
+                var angle = 30 * (Math.PI / 180);
+                var offset = dist / 2 * Math.tan(angle);
+
+                var cx = (x1 + x2) / 2 + offset * dy / dist;
+                var cy = (y1 + y2) / 2 - offset * dx / dist;
+                var control = new mxPoint(cx, cy);
+                return control
+            }
+
+
+            mxEdgeStyle.arcEdgeStyle = function (state, source, target, points, result) {
+                var sourcePoint = state.absolutePoints[0] ? graph.getConnectionPoint(source, state.absolutePoints[0]) : null;
+                var targetPoint = state.absolutePoints[state.absolutePoints.length - 1] ? graph.getConnectionPoint(target, state.absolutePoints[state.absolutePoints.length - 1]) : null;
+                if (!(sourcePoint && targetPoint)) {
+                    sourcePoint = graph.view.getFloatingTerminalPoint(state.cell, source, target, true);
+                    targetPoint = graph.view.getFloatingTerminalPoint(state.cell, target, source, false);
+                }
+
+                var pt = findPoint4(sourcePoint.x, sourcePoint.y, targetPoint.x, targetPoint.y);
+                result.push(pt);
+                // result.push(targetPoint);
+
+            };
+
+            mxStyleRegistry.putValue('arcEdgeStyle', mxEdgeStyle.arcEdgeStyle);
+
+            graph.getModel().beginUpdate();
+            try {
+                //todo 修改所有边的样式为 cubicBezierEdgeStyle
+                var edges = graph.getChildEdges(parent);
+                for (var i = 0; i < edges.length; i++) {
+                    graph.getModel().setStyle(edges[i], 'edgeStyle=arcEdgeStyle;curved=1');
+                }
+            } finally {
+                graph.getModel().endUpdate();
+            }
+
+        }
+    </script>
+</body>
+
+</html>

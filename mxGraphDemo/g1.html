@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dagre D3 Demo</title>
+    <script src="dagre.js"> </script>
+    <script src="d3.v5.min.js"></script>
+    <script src="dagre-d3.js"></script>
+    <style>
+        /* This sets the color for "TK" nodes to a light blue green. */
+        g.type-TK > rect {
+        fill: #00ffd0;
+        }
+
+        text {
+        font-weight: 300;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        }
+
+        .node rect {
+        stroke: #999;
+        fill: #fff;
+        stroke-width: 1.5px;
+        }
+
+        .edgePath path {
+        stroke: #333;
+        stroke-width: 1.5px;
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <div
+        id="dagre-svg"
+    ><svg width="1080" height="800"></svg></div>
+    <script>
+        // Create the input graph
+        debugger;
+        var g = new dagre.graphlib.Graph({ compound: true, multigraph: true })
+        .setGraph({randdir:"TB"})
+        .setDefaultEdgeLabel(function() { return {}; });
+
+        g.setNode("cluster_xn2", {label: "新一代集中交易", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn2", clusterLabelPos: 'top', });
+        g.setNode("n3", {label: "新一代集中交易服务", width: 150, height: 126.81, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn4", {label: "资金中心", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn4", clusterLabelPos: 'top', });
+        g.setNode("n5", {label: "新一代资金服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn6", {label: "融资融券系统", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn6", clusterLabelPos: 'top', });
+        g.setNode("n7", {label: "新一代融资融券服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn8", {label: "公共参数", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn8", clusterLabelPos: 'top', });
+        g.setNode("n9", {label: "新一代公共参数服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});        
+        g.setNode("cluster_xn10", {label: "账户中心", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn10", clusterLabelPos: 'top', });
+        g.setNode("n11", {label: "新一代账户中心", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn12", {label: "业务流程管理系统", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn12", clusterLabelPos: 'top', });
+        g.setNode("n13", {label: "新一代业务流程管理服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn21", {label: "核心交易操作员中心", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn21", clusterLabelPos: 'top', });
+        g.setNode("n22", {label: "核心交易操作员中心", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn14", {label: "统一清算系统", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn14", clusterLabelPos: 'top', });
+        g.setNode("n15", {label: "新一代清算平台", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("n16", {label: "新一代集中交易清算服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("n17", {label: "新一代期权清算服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("n18", {label: "新一代理财清算服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn19", {label: "新一代客户查询系统", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn19", clusterLabelPos: 'top', });
+        g.setNode("n20", {label: "新一代客户查询服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn23", {label: "股票期权系统", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn23", clusterLabelPos: 'top', });
+        g.setNode("n24", {label: "新一代股票期权风控服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("n25", {label: "新一代股票期权交易服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn26", {label: "客户统一适当性中心", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn26", clusterLabelPos: 'top', });
+        g.setNode("n27", {label: "新一代客户统一适当性服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+        g.setNode("cluster_xn28", {label: "报表中心", style: "fill: #00ffd0", paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0, align: "UP", id: "cluster_xn28", clusterLabelPos: 'top', });
+        g.setNode("n29", {label: "新一代报表中心-招证自研服务", width: 150, height: 75, labelStyle: "font-weight: bold", style: "fill: #5f9488" , paddingBottom: 0, paddingLeft: 0, paddingRight: 0, paddingTop: 0});
+
+        g.setEdge( "cluster_xn28", "cluster_xn23", { label: "", labelpos: 'c', id: "e60" } );
+
+        g.setEdge( "n3", "n3", { label: "", labelpos: 'c', id: "e40" } );
+        g.setEdge( "n3", "n5", { label: "", labelpos: 'c', id: "e30" } );
+        g.setEdge( "n3", "n7", { label: "", labelpos: 'c', id: "e31" } );
+        g.setEdge( "n3", "n9", { label: "", labelpos: 'c', id: "e32" } );
+        g.setEdge( "n3", "n11", { label: "", labelpos: 'c', id: "e33" } );
+        g.setEdge( "n3", "n13", { label: "", labelpos: 'c', id: "e34" } );
+        g.setEdge( "n15", "n3", { label: "", labelpos: 'c', id: "e35" } );
+        g.setEdge( "n5", "n3", { label: "", labelpos: 'c', id: "e36" } );
+        g.setEdge( "n16", "n3", { label: "", labelpos: 'c', id: "e37" } );
+        g.setEdge( "n20", "n3", { label: "", labelpos: 'c', id: "e38" } );
+        g.setEdge( "n7", "n3", { label: "", labelpos: 'c', id: "e39" } );
+        g.setEdge( "n11", "n3", { label: "", labelpos: 'c', id: "e41" } );
+        g.setEdge( "n3", "n22", { label: "", labelpos: 'c', id: "e42" } );
+        g.setEdge( "n13", "n3", { label: "", labelpos: 'c', id: "e43" } );
+        g.setEdge( "n24", "n3", { label: "", labelpos: 'c', id: "e44" } );
+        g.setEdge( "n27", "n3", { label: "", labelpos: 'c', id: "e45" } );
+        g.setEdge( "n17", "n3", { label: "", labelpos: 'c', id: "e46" } );
+        g.setEdge( "n18", "n3", { label: "", labelpos: 'c', id: "e47" } );
+        g.setEdge( "n25", "n3", { label: "", labelpos: 'c', id: "e48" } );
+        g.setEdge( "n29", "n3", { label: "", labelpos: 'c', id: "e49" } );
+        g.setEdge( "n9", "n3", { label: "", labelpos: 'c', id: "e50" } );
+              
+        g.setParent("n3", "cluster_xn2");
+        g.setParent("n5", "cluster_xn4");
+        g.setParent("n7", "cluster_xn6");
+        g.setParent("n22", "cluster_xn21");
+        g.setParent("n13", "cluster_xn12");
+        g.setParent("n11", "cluster_xn10");
+        g.setParent("n9", "cluster_xn8");
+        g.setParent("n15", "cluster_xn14");
+        g.setParent("n29", "cluster_xn28");
+        g.setParent("n27", "cluster_xn26");
+        g.setParent("n25", "cluster_xn23");
+        g.setParent("n24", "cluster_xn23");
+        g.setParent("n20", "cluster_xn19");
+        g.setParent("n18", "cluster_xn14");
+        g.setParent("n17", "cluster_xn14");
+        g.setParent("n16", "cluster_xn14");
+
+        dagre.layout(g);
+        // Create the renderer
+        var render = new dagreD3.render();
+
+        // Set up an SVG group so that we can translate the final graph.
+        var svg = d3.select("svg"),
+            svgGroup = svg.append("g");
+
+        // Run the renderer. This is what draws the final graph.
+        render(d3.select("svg g"), g);
+
+        // Center the graph
+        // var xCenterOffset = (svg.attr("width") - g.graph().width) / 2;
+        // svgGroup.attr("transform", "translate(" + xCenterOffset + ", 20)");
+        svg.attr("height", g.graph().height);
+                svg.attr("width", g.graph().width);
+    </script>
+    </body>
+
+    </html>

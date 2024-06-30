@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smooth Bezier Curve</title>
+</head>
+<body>
+    <canvas id="bezierCanvas" width="500" height="500" style="border:1px solid #000;"></canvas>
+    <script>
+        // 获取画布元素和上下文
+        const canvas = document.getElementById('bezierCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 定义两个端点
+        const startPoint = { x: 250, y: 450 };
+        const endPoint = { x: 350, y: 150 };
+
+        // 自动生成控制点
+        let controlPoint1, controlPoint2;
+        const dx = endPoint.x - startPoint.x;
+        const dy = endPoint.y - startPoint.y;
+
+        if (Math.abs(dx) >= Math.abs(dy)) {
+            // 如果两端点的连线更像一条横线，创建横向贝塞尔曲线
+            const controlOffset = dx / 8;
+
+            controlPoint1 = {
+                x: startPoint.x + dx / 3,
+                y: startPoint.y - controlOffset
+            };
+
+            controlPoint2 = {
+                x: startPoint.x + 2 * dx / 3,
+                y: startPoint.y + controlOffset
+            };
+        } else {
+            // 如果两端点的连线更像一条竖线，创建垂直贝塞尔曲线
+            const controlOffset = dy / 8;
+
+            controlPoint1 = {
+                x: startPoint.x - controlOffset,
+                y: startPoint.y + dy / 3
+            };
+
+            controlPoint2 = {
+                x: startPoint.x + controlOffset,
+                y: startPoint.y + 2 * dy / 3
+            };
+        }
+
+        // 绘制端点和控制点
+        function drawPoint(point, color) {
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.closePath();
+        }
+        drawPoint(startPoint, 'red');
+        drawPoint(endPoint, 'blue');
+        drawPoint(controlPoint1, 'green');
+        drawPoint(controlPoint2, 'orange');
+
+        // 绘制贝塞尔曲线
+        ctx.beginPath();
+        ctx.moveTo(startPoint.x, startPoint.y);
+        ctx.bezierCurveTo(controlPoint1.x, controlPoint1.y, controlPoint2.x, controlPoint2.y, endPoint.x, endPoint.y);
+        ctx.stroke();
+        ctx.closePath();
+    </script>
+</body>
+</html>

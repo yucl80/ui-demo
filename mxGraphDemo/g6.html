@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dagre D3 Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+    <script src="d3.v5.min.js"></script>
+    <script src="dagre-d3.js"></script>
+    <script src="dagre.js"></script>
+    <style>
+        .clusters rect {
+            fill: #00ffd0;
+            stroke: #999;
+            stroke-width: 1.5px;
+        }
+
+        text {
+            font-weight: 300;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serf;
+            font-size: 14px;
+        }
+
+        .node rect {
+            stroke: #999;
+            fill: #fff;
+            stroke-width: 1.5px;
+        }
+
+        .edgePath path {
+            stroke: #333;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <svg id="svg-canvas" width="1080" height="800"></svg>
+    <div id="graphContainer" width="1080" height="800"></div>
+    <script>
+        function CustomLayout(graph) {
+            mxGraphLayout.call(this, graph);
+        }
+
+        // 继承mxGraphLayout
+        CustomLayout.prototype = new mxGraphLayout();
+        CustomLayout.prototype.constructor = CustomLayout;
+
+        // 实现自定义布局算法
+        CustomLayout.prototype.execute = function (parent) {
+            // 在这里实现你的自定义布局算法
+            // ...
+            var model = this.graph.getModel();
+
+            model.beginUpdate();
+            try {
+
+                var vertices = [];
+                var childCount = model.getChildCount(parent);
+
+                var g = new dagreD3.graphlib.Graph({ compound: true })
+                    .setGraph({ rankdir: "TB" })
+                    .setDefaultEdgeLabel(function () { return {}; });
+
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isVertex(cell)) {
+                        var cc = cell.getChildCount();
+                        if (cc > 0) {
+                            g.setNode(cell.id, { label: cell.value });
+                            for (var j = 0; j < cc; j++) {
+                                var ccell = cell.getChildAt(j);
+                                if (model.isVertex(ccell)) {
+                                    g.setNode(ccell.id, { label: ccell.value, style: 'fill: #5f9488',with:ccell.with, height:ccell.height });
+                                    g.setParent(ccell.id, cell.id);
+                                } else if (model.isEdge(ccell)) {
+                                    g.setEdge(ccell.source.id, ccell.target.id, { curve: d3.curveBasis });
+                                }
+                            }
+
+                        } else {
+                            g.setNode(cell.id, { label: cell.value ,with:cell.with, height:cell.height });
+                        }
+
+
+                    }
+                    if (!this.isVertexIgnored(cell)) {
+                        vertices.push(cell);
+                    }
+                }
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isEdge(cell)) {
+                        console.log(cell);
+                        g.setEdge(cell.source.id, cell.target.id, { curve: d3.curveBasis });
+                    }
+                    if (!this.isVertexIgnored(cell)) {
+                        vertices.push(cell);
+                    }
+                }
+                console.log(g);
+
+                g.nodes().forEach(function (v) {
+                    var node = g.node(v);
+                    // Round the corners of the nodes
+                    node.rx = node.ry = 5;
+                });
+
+                dagre.layout(g);
+                g.nodes().forEach(function (v) {
+                    console.log("Node " + v + ": " + JSON.stringify(g.node(v)));
+                });
+                g.edges().forEach(function (e) {
+                    console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(g.edge(e)));
+                });
+
+
+
+                // Create the renderer
+                var render = new dagreD3.render();
+                // Set up an SVG group so that we can translate the final graph.
+                var svg = d3.select("svg"),
+                    svgGroup = svg.append("g");
+                // Run the renderer. This is what draws the final graph.
+                render(d3.select("svg g"), g);
+
+                var map = new Map();
+                g.nodes().forEach(function (v) {
+                    var node = g.node(v);
+                    console.log('Node ' + v + ': (' + node.x + ', ' + node.y + ')');
+                    map.set(v, node);
+                });
+
+                g.edges().forEach(function (e) {
+                    console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(g.edge(e)));
+                });
+
+
+
+                console.log(map);
+                var vertexCount = vertices.length;
+                for (var i = 0; i < vertexCount; i++) {
+                    var cell = vertices[i];
+                    if (this.isVertexMovable(cell)) {
+                        var pos = map.get(cell.id);
+                        this.setVertexLocation(cell, parseInt(pos.x), parseInt(pos.y));
+
+                        //var geo = new mxGeometry(pos.x, pos.y, w, h);
+                        //  console.log("cell pos :" + w + " : " + h + ":" + y);
+                        // ref.graph.resizeCell(cell, geo);
+                    }
+                }
+
+            }
+            finally {
+                model.endUpdate();
+            }
+            // 调用父类的execute方法来完成布局
+            mxGraphLayout.prototype.execute.apply(this, arguments);
+        };
+
+        function main() {
+
+            // 创建图形容器
+            const container = document.getElementById("graphContainer");
+            const graph = new mxGraph(container);
+
+
+            // 获取图形样式
+            var style = graph.getStylesheet().getDefaultEdgeStyle();
+
+            // 设置edge为曲线
+            style[mxConstants.STYLE_EDGE] = mxEdgeStyle.ElbowConnector;
+            style[mxConstants.STYLE_CURVED] = 1;
+            style[mxConstants.STYLE_DASHED] = 1;
+            // style[mxConstants.STYLE_ROUNDED] = 1;
+            //  style[mxConstants.STYLE_SMOOTH] = 1;      
+            // 创建节点和边
+
+            const parent = graph.getDefaultParent();
+            const person = graph.insertVertex(parent, 'person', 'person', 0, 0, 144, 40);
+            const Mail = graph.insertVertex(parent, 'Mail', 'Mail System', 0, 0, 144, 40);
+            const MBS = graph.insertVertex(parent, 'MBS', 'Mainframe System', 0, 0, 144, 40);
+            const bs = graph.insertVertex(parent, 'bs', 'Bank System', 0, 0, 144, 40);
+            const webApp = graph.insertVertex(bs, 'webApp', 'Web App', 0, 0, 144, 40);
+            const SPA = graph.insertVertex(bs, 'SPA', 'Single-Page Application', 0, 0, 144, 40);
+            const MA = graph.insertVertex(bs, 'MA', 'Mobile Application', 0, 0, 144, 40);
+            const API = graph.insertVertex(bs, 'API', 'API Application', 0, 0, 144, 40);
+            const DB = graph.insertVertex(bs, 'DB', 'Database', 0, 0, 144, 40);
+
+            const e1 = graph.insertEdge(parent, 'Mail->person', 'send mail to', Mail, person);
+            const e2 = graph.insertEdge(parent, 'person->webApp', 'person->webApp', person, webApp);
+            const e3 = graph.insertEdge(parent, 'person->SPA', 'person->SPA', person, SPA);
+            const e4 = graph.insertEdge(parent, 'person->MA', 'person->MA', person, MA);
+            const e5 = graph.insertEdge(parent, 'SPA->API', 'SPA->API', SPA, API);
+            const e6 = graph.insertEdge(parent, 'MA->API', 'MA->API', MA, API);
+            const e7 = graph.insertEdge(parent, 'API->DB', 'API->DB', API, DB);
+            const e8 = graph.insertEdge(parent, 'API->Mail', 'API->Mail', API, Mail);
+            const e9 = graph.insertEdge(parent, 'API->MBS', 'API->MBS', API, MBS);
+            const e10 = graph.insertEdge(parent, 'webApp->SPA', 'webApp->SPA', webApp, SPA);
+            const layout = new CustomLayout(graph);
+            layout.execute(parent);
+        }
+    </script>
+</body>
+
+</html>

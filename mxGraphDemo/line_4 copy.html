@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>mxGraph with Cubic Bezier Curve</title>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+    <style>
+        #graphContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="graphContainer"></div>
+    <script>
+        // Check if the browser supports HTML5 Canvas
+        if (!mxClient.isBrowserSupported()) {
+            mxUtils.error('Browser is not supported!', 200, false);
+        } else {
+            function toJsonStr(json_data) {
+                var cache = [];
+                var json_str = JSON.stringify(json_data, function (key, value) {
+                    if (typeof value === 'object' && value !== null) {
+                        if (cache.indexOf(value) !== -1) {
+                            return;
+                        }
+                        cache.push(value);
+                    }
+                    return value;
+                });
+                cache = null;
+                return json_str;
+            }
+            // Create the graph inside the container
+            var container = document.getElementById('graphContainer');
+            var graph = new mxGraph(container);
+
+            // Define a custom style for the cubic bezier curve
+            var style = graph.getStylesheet().getDefaultEdgeStyle();
+            style['edgeStyle'] = 'cubicBezierEdgeStyle';
+
+            // Custom cubic bezier edge style
+            mxEdgeStyle.cubicBezierEdgeStyle = function (state, source, target, points, result) {
+                console.log(state)
+
+                var pt1 = source;
+                var pt2 = target;
+
+                console.log(pt1.x + "," + pt1.y + " -> " + pt2.x + "," + pt2.y);
+                pt1.x = pt1.x + source.width;
+                pt1.y = pt1.y + source.height / 2;
+
+                pt2.x = pt2.x;
+                pt2.y = pt2.y + target.height / 2;
+
+                // console.log("points:"+toJsonStr(points));
+                // console.log("source:"+toJsonStr(source) + " ->  target:" + toJsonStr(target));
+                console.log(pt1.x + "," + pt1.y + " -> " + pt2.x + "," + pt2.y);
+                // console.log(points);
+                var control1 = new mxPoint((2 * pt1.x + pt2.x) / 3, pt1.y);
+                var control2 = new mxPoint((pt1.x + 2 * pt2.x) / 3, pt2.y);
+                result.length = 0;
+
+                result.push(new mxPoint(pt1.x, pt1.y));
+                result.push(control1);
+                result.push(control2);
+                result.push(new mxPoint(pt2.x, pt2.y));
+            };
+            style[mxConstants.STYLE_EDGE] = mxEdgeStyle.cubicBezierEdgeStyle;
+            // style[mxConstants.STYLE_EDGE] = mxEdgeStyle.ElbowConnector;
+            style[mxConstants.STYLE_CURVED] = 1;
+            // style[mxConstants.STYLE_DASHED] = 1;
+            // style[mxConstants.STYLE_ROUNDED] = 1;
+            // style[mxConstants.STYLE_SMOOTH] = 1;
+            // Insert a custom cubic bezier curve
+            var parent = graph.getDefaultParent();
+            graph.getModel().beginUpdate();
+            try {
+                var v1 = graph.insertVertex(parent, null, 'v1', 200, 200, 80, 30);
+                var v2 = graph.insertVertex(parent, null, 'v2', 400, 400, 80, 30);
+                var v3 = graph.insertVertex(parent, null, 'v3', 100, 400, 80, 30);
+                var v4 = graph.insertVertex(parent, null, 'v4', 400, 100, 80, 30);
+                var edge3 = graph.insertEdge(parent, null, '', v1, v4);
+                var edge1 = graph.insertEdge(parent, null, '', v1, v2);
+                // var edge2 = graph.insertEdge(parent, null, '', v3, v4);
+                // var edge3 = graph.insertEdge(parent, null, '', v1, v3);
+                
+            } finally {
+                graph.getModel().endUpdate();
+            }
+        }
+    </script>
+</body>
+
+</html>

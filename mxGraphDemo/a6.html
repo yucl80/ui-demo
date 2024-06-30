@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>mxGraph层次布局示例</title>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphviz.umd.js"></script>
+    <style>
+        #graphContainer {
+            height: 600;
+            width: 100%;
+            position: absolute;
+        }
+    </style>
+</head>
+
+<body onload="main()">
+    <div id="graphContainer"></div>
+    <script>
+        // 自定义布局算法
+
+        // 创建一个新的类，继承自mxGraphLayout
+        function CustomLayout(graph) {
+            mxGraphLayout.call(this, graph);
+        }
+
+        // 继承mxGraphLayout
+        CustomLayout.prototype = new mxGraphLayout();
+        CustomLayout.prototype.constructor = CustomLayout;
+
+        // 实现自定义布局算法
+        CustomLayout.prototype.execute = function (parent) {
+            // 在这里实现你的自定义布局算法
+            // ...
+            var model = this.graph.getModel();
+
+            model.beginUpdate();
+            try {
+
+
+                var vertices = [];
+                var childCount = model.getChildCount(parent);
+
+                var dot = `digraph G {\n  graph [ rankdir=TB, ranksep=1.0,nodesep=1.0 ] \n   node [shape=rect] ; \n `;
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    console.log(cell);
+                    if (model.isVertex(cell)) {
+                        var cc = cell.getChildCount();
+                        if (cc > 0) {
+                            dot = dot + 'subgraph '+ cell.id + ` { \n  cluster=true \n`;
+                            for (var j = 0; j < cc; j++) {
+                                var ccell = cell.getChildAt(j);
+                                if (model.isVertex(ccell)) {
+                                    dot = dot + ccell.id + ` [id=` + ccell.id + `,shape=rect] \n`;
+                                }else if(model.isEdge(ccell)){
+                                    dot = dot + ccell.source.id + " -> " + ccell.target.id + "\n";                                   
+                                }
+                            }
+                            dot = dot + "}\n";
+
+
+                        } else {
+                            dot = dot + cell.id + ` [id=` + cell.id + `,shape=rect] \n`;
+                        }
+
+
+                    }
+
+                    if (!this.isVertexIgnored(cell)) {
+                        vertices.push(cell);
+                    }
+                }
+                for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isEdge(cell)) {
+                        console.log(cell);
+                        dot = dot + cell.source.id + " -> " + cell.target.id + "\n";
+                    }
+                    if (!this.isVertexIgnored(cell)) {
+                        vertices.push(cell);
+                    }
+                }
+                dot = dot + "  \n }";
+                console.log(dot);
+
+                var hpccWasm = window["@hpcc-js/wasm"];
+                var myPromise = new Promise(function (myResolve, myReject) {
+                    hpccWasm.Graphviz.load().then(graphviz => {
+                        const positions = graphviz.layout(dot, "json", "dot", { yInvert: true });
+                        const positionsObj = JSON.parse(positions);
+                        console.log("pos:");
+                        console.log(positionsObj);
+                        var map = new Map();
+                        positionsObj.objects.forEach(node => {
+                            if(node.cluster == 'true'){
+                                var bb = node.bb;
+                                console.log(node.name+":"+ bb);
+                                map.set(node.name,bb);
+                            }else{
+                                if (node.pos != undefined) {
+                                console.log(node.id + ":" + node.pos);
+                                map.set(node.id, node.pos);
+                            } else {
+                                console.log(node.id + ":" + node.lp);
+                                map.set(node.id, node.lp);
+                            }
+                            }
+                           
+
+                        });
+                        positionsObj.edges.forEach(edge => {
+                            if (edge.pos != undefined) {
+                                console.log(edge.tail + "->" + edge.head + ":" + edge.pos);
+                            }
+
+                        });
+                        myResolve(map);
+
+                    }).catch(e => console.log(e.message));
+                });
+
+                var ref = this;
+                myPromise.then(function (nodeMap) {
+                    console.log(nodeMap);
+                    var vertexCount = vertices.length;
+                    for (var i = 0; i < childCount; i++) {
+                    var cell = model.getChildAt(parent, i);
+                    if (model.isVertex(cell)) {
+                        var cc = cell.getChildCount();
+                        if (cc > 0) {
+                            var pos = nodeMap.get(cell.id);                            
+                            console.log("Cell " + cell.id + ": " + JSON.stringify(pos));                           
+                            ref.setVertexLocation(cell, pos.x, pos.y );
+                            var geo = new mxGeometry(pos.x, pos.y , pos.width, pos.height);
+                            ref.graph.resizeCell(cell, geo);
+
+                            for (var j = 0; j < cc; j++) {
+                                var ccell = cell.getChildAt(j);
+                                if (model.isVertex(ccell)) {
+                                    var pos1 = nodeMap.get(ccell.id);
+                                   // this.setVertexLocation(ccell, pos1.x-(pos.x- pos.width/2)-60, pos1.y- (pos.y - pos.height/2)-50 );
+                                    var geo = new mxGeometry(pos1.x, pos1.y, 144, 40);
+                                    ref.graph.resizeCell(ccell, geo);
+                                } else if (model.isEdge(ccell)) {
+
+                                }
+
+                            }
+                           
+                        } else {
+                            var pos = nodeMap.get(cell.id);
+                            console.log("Node " + cell.id + ": " + JSON.stringify(pos));
+                            ref.setVertexLocation(cell, pos.x , pos.y );
+                            // var geo = new mxGeometry(pos.x, pos.y, pos.with, pos.height);
+                            // this.graph.resizeCell(cell, geo);
+                           // var geo = new mxGeometry(pos.x, pos.y, pos.width, pos.height);
+                           // this.graph.resizeCell(cell, geo);
+                        }
+
+
+                    } else if (model.isEdge(cell)) {
+
+                        //  console.log(cell);
+                        // g.setEdge(cell.source.id, cell.target.id, {});
+
+                    }
+                   
+                }
+                })
+
+            }
+            finally {
+                model.endUpdate();
+            }
+            // 调用父类的execute方法来完成布局
+            mxGraphLayout.prototype.execute.apply(this, arguments);
+        };
+        function main() {
+
+            // 创建图形容器
+            const container = document.getElementById("graphContainer");
+            const graph = new mxGraph(container);
+
+
+            // 获取图形样式
+            var style = graph.getStylesheet().getDefaultEdgeStyle();
+
+            // 设置edge为曲线
+            style[mxConstants.STYLE_EDGE] = mxEdgeStyle.ElbowConnector;
+            style[mxConstants.STYLE_CURVED] = 1;
+            style[mxConstants.STYLE_DASHED] = 1;
+            // style[mxConstants.STYLE_ROUNDED] = 1;
+            //  style[mxConstants.STYLE_SMOOTH] = 1;      
+            // 创建节点和边
+
+            const parent = graph.getDefaultParent();
+            const person = graph.insertVertex(parent, 'person', 'person', 0, 0, 120, 60);
+            const Mail = graph.insertVertex(parent, 'Mail', 'Mail System', 0, 0, 120, 60);
+            const MBS = graph.insertVertex(parent, 'MBS', 'Mainframe System', 0, 0, 120, 60);
+            const bs = graph.insertVertex(parent, 'bs', 'Bank System', 0, 0, 200, 300);
+            const webApp = graph.insertVertex(bs, 'webApp', 'Web App', 0, 0, 120, 60);
+            const SPA = graph.insertVertex(bs, 'SPA', 'Single-Page Application', 0, 0, 80, 30);
+            const MA = graph.insertVertex(bs, 'MA', 'Mobile Application', 0, 0, 80, 30);
+            const API = graph.insertVertex(bs, 'API', 'API Application', 0, 0, 80, 30);
+            const DB = graph.insertVertex(bs, 'DB', 'Database', 0, 0, 80, 30);
+
+            const e1 = graph.insertEdge(parent, 'Mail->person', 'send mail to', Mail, person);
+            const e2 = graph.insertEdge(parent, 'person->webApp', 'person->webApp', person, webApp);
+            const e3 = graph.insertEdge(parent, 'person->SPA', 'person->SPA', person, SPA);
+            const e4 = graph.insertEdge(parent, 'person->MA', 'person->MA', person, MA);
+            const e5 = graph.insertEdge(parent, 'SPA->API', 'SPA->API', SPA, API);
+            const e6 = graph.insertEdge(parent, 'MA->API', 'MA->API', MA, API);
+            const e7 = graph.insertEdge(parent, 'API->DB', 'API->DB', API, DB);
+            const e8 = graph.insertEdge(parent, 'API->Mail', 'API->Mail', API, Mail);
+            const e9 = graph.insertEdge(parent, 'API->MBS', 'API->MBS', API, MBS);
+            const e10 = graph.insertEdge(parent, 'webApp->SPA', 'webApp->SPA', webApp, SPA);
+            const layout = new CustomLayout(graph);
+            layout.execute(parent);
+        }
+
+        // 使用自定义布局算法
+        //myLayout(graph);
+    </script>
+</body>
+
+</html>

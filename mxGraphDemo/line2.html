@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MXGraph Custom Bezier Edge Example</title>
+    <!-- 引入mxGraph所需的CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+    <style>
+        #graphContainer {
+            width: 100%;
+            height: 600px;
+            border: 1px solid lightgray;
+        }
+    </style>
+</head>
+<body>
+
+<div id="graphContainer"></div>
+
+<script>
+    // 确保mxClient已定义，这是mxGraph库加载成功的标志
+    if (!mxClient.isBrowserSupported()) {
+        mxUtils.error('Browser is not supported!', 200, false);
+    } else {
+        // 创建图表实例
+        var container = document.getElementById('graphContainer');
+        var graph = new mxGraph(container);
+        
+        // 自定义边形状类
+        function MxBezierEdgeShape() {}
+        MxBezierEdgeShape.prototype = new mxEdgeShape();
+        MxBezierEdgeShape.prototype.constructor = MxBezierEdgeShape;
+        
+        MxBezierEdgeShape.prototype.createCurvePoints = function(state, points) {
+            var curveFactor = 0.3;
+            var p0 = points[0];
+            var pe = points[points.length - 1];
+            var cp1x = p0.x + (pe.x - p0.x) * curveFactor;
+            var cp1y = p0.y + (pe.y - p0.y) * curveFactor;
+            var cp2x = pe.x - (pe.x - p0.x) * curveFactor;
+            var cp2y = pe.y - (pe.y - p0.y) * curveFactor;
+            
+            return [p0, {x: cp1x, y: cp1y}, {x: cp2x, y: cp2y}, pe];
+        };
+        
+        // 注意：此处省略了applyEdgeStyle和createMarker方法的完整实现细节，直接使用或根据需求调整
+        
+        // 注册自定义形状
+        mxCellRenderer.registerShape('mxBezierEdgeShape', MxBezierEdgeShape);
+        
+        // 创建样式并应用
+        var stylesheet = graph.getStylesheet();
+        var customEdgeStyle = stylesheet.createEdgeStyle();
+        customEdgeStyle[mxConstants.STYLE_SHAPE] = 'mxBezierEdgeShape';
+        customEdgeStyle[mxConstants.STYLE_STROKECOLOR] = '#000000';
+        customEdgeStyle[mxConstants.STYLE_FILLCOLOR] = '#ffffff';
+        customEdgeStyle[mxConstants.STYLE_STARTARROW] = mxConstants.ARROW_CLASSIC;
+        customEdgeStyle[mxConstants.STYLE_ENDARROW] = mxConstants.ARROW_BLOCK;
+        
+        // 添加节点和边
+        var parent = graph.getDefaultParent();
+        var v1 = graph.insertVertex(parent, null, 'Vertex 1', 20, 20, 80, 30);
+        var v2 = graph.insertVertex(parent, null, 'Vertex 2', 200, 150, 80, 30);
+        graph.insertEdge(parent, null, '', v1, v2,customEdgeStyle);
+    }
+</script>
+
+</body>
+</html>

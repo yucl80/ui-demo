@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Dagre D3 Demo</title>
+    <script src="d3.v5.min.js"></script>
+    <script src="dagre-d3.js"></script>
+    <script src="dagre.js"></script>
+    <style>
+        .clusters rect {
+            fill: #00ffd0;
+            stroke: #999;
+            stroke-width: 1.5px;
+        }
+
+        text {
+            font-weight: 300;
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serf;
+            font-size: 14px;
+        }
+
+        .node rect {
+            stroke: #999;
+            fill: #fff;
+            stroke-width: 1.5px;
+        }
+
+        .edgePath path {
+            stroke: #333;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="svg-canvas" width="1080" height="800"></svg>
+    <script>
+        // Create the input graph
+        var g = new dagre.graphlib.Graph({ compound: true })
+            .setGraph({ rankdir: "TB" })
+            .setDefaultEdgeLabel(function () { return {}; });
+
+            g.setDefaultNodeLabel(function() { return {}; });
+            g.setDefaultEdgeLabel(function() { return {}; });
+
+        // Here we're setting the nodes
+        g.setNode('Box1', { label: 'Box1' ,  width: 144, height: 40});
+        g.setNode('Box2', { label: 'Box2' ,  width: 144, height: 40});       ;
+        g.setNode('c1', { label: 'C1', style: 'fill: #5f9488',  width: 44, height: 40 });
+        g.setNode('c2', { label: 'C2', style: 'fill: #5f9488',  width: 44, height: 40 });
+        g.setNode('c3', { label: 'C3', style: 'fill: #5f9488',  width: 44, height: 40 });
+
+        g.setNode('V1', { label: '', style: 'fill: #5f9488;display:none',  width: 0, height: 0,});
+       // g.setNode('V2', { label: '', style: 'fill: #5f9488;',  width: 0, height: 0, });
+
+        // Set the parents to define which nodes belong to which cluster
+        g.setParent('c1', 'Box1');
+        g.setParent('V1', 'Box1');
+        g.setParent('c2', 'Box2');
+       // g.setParent('V2', 'Box2');
+        g.setParent('c3', 'Box2');
+        g.setEdge('c2', 'V1', { curve: d3.curveBasis ,style:'display:none',width:0, height:0});
+       
+
+
+        g.nodes().forEach(function (v) {
+            var node = g.node(v);
+            // Round the corners of the nodes
+            node.rx = node.ry = 5;
+        });
+
+        dagre.layout(g);
+        g.nodes().forEach(function (v) {
+            console.log("Node " + v + ": " + JSON.stringify(g.node(v)));
+        });
+        g.edges().forEach(function (e) {
+            console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(g.edge(e)));
+        });
+
+        // Create the renderer
+        var render = new dagreD3.render();
+
+
+        // Set up an SVG group so that we can translate the final graph.
+        var svg = d3.select("svg"),
+            svgGroup = svg.append("g");
+
+        // Run the renderer. This is what draws the final graph.
+        render(d3.select("svg g"), g);
+
+        g.nodes().forEach(function (v) {
+            console.log(JSON.stringify(v));
+            var node = g.node(v);
+            console.log('Node ' + v + ': (' + node.x + ', ' + node.y + ')');
+        });
+
+        g.edges().forEach(function (e) {
+            console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(g.edge(e)));
+        });
+
+        // Center the graph
+        var xCenterOffset = (svg.attr("width") - g.graph().width) / 2;
+        svgGroup.attr("transform", "translate(" + xCenterOffset + ", 20)");
+        svg.attr("height", g.graph().height + 40);
+
+        g.nodes().forEach(function (v) {
+            var node = g.node(v);
+            if (node.elem != undefined) {
+                var box = node.elem.getBBox();
+                console.log('Node ' + v + ': (' + box.width + ',' + box.height + ')');
+            } else {
+                console.log("node elem undefined " + node);
+            }
+
+        });
+    </script>
+</body>
+
+</html>

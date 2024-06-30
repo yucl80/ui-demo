@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<body>
+  <script src="https://unpkg.com/gojs@2.3.11/release/go.js"></script>
+  <p>
+    This is a minimalist HTML and JavaScript skeleton of the GoJS Sample
+    <a href="https://gojs.net/latest/samples/ldLayout.html">ldLayout.html</a>. It was automatically generated from a
+    button on the sample page,
+    and does not contain the full HTML. It is intended as a starting point to adapt for your own usage.
+    For many samples, you may need to inspect the
+    <a href="https://github.com/NorthwoodsSoftware/GoJS/blob/master/samples/ldLayout.html">full source on Github</a>
+    and copy other files or scripts.
+  </p>
+  <div id="allSampleContent" class="p-4 w-full">
+    <script id="code">
+      function init() {
+
+        // Since 2.2 you can also author concise templates with method chaining instead of GraphObject.make
+        // For details, see https://gojs.net/latest/intro/buildingObjects.html
+        const $ = go.GraphObject.make;  // for conciseness in defining templates
+
+        myDiagram =
+          new go.Diagram("myDiagramDiv",  // must be the ID or reference to div
+            {
+              initialAutoScale: go.Diagram.UniformToFill,
+              layout: $(go.LayeredDigraphLayout, { alignOption: go.LayeredDigraphLayout.AlignAll })
+              // other Layout properties are set by the layout function, defined below
+            });
+
+        // define the Node template
+        myDiagram.nodeTemplate =
+          $(go.Node, "Spot",
+            { locationSpot: go.Spot.Center },
+            $(go.Shape, "Rectangle",
+              {
+                fill: "lightgray",  // the initial value, but data binding may provide different value
+                stroke: null,
+                desiredSize: new go.Size(30, 30)
+              },
+              new go.Binding("fill", "fill")),
+            $(go.TextBlock,
+              new go.Binding("text", "text"))
+          );
+
+        // define the Link template to be minimal
+        myDiagram.linkTemplate =
+          $(go.Link,
+            { selectable: false },
+            $(go.Shape,
+              { strokeWidth: 3, stroke: "#333" }));
+
+        // generate a tree with the default values
+        rebuildGraph();
+      }
+
+      function rebuildGraph() {
+        var minNodes = document.getElementById("minNodes").value;
+        minNodes = parseInt(minNodes, 10);
+
+        var maxNodes = document.getElementById("maxNodes").value;
+        maxNodes = parseInt(maxNodes, 10);
+
+        generateDigraph(minNodes, maxNodes);
+      }
+
+      function generateDigraph(minNodes, maxNodes) {
+        myDiagram.startTransaction("generateDigraph");
+        // replace the diagram's model's nodeDataArray
+        generateNodes(minNodes, maxNodes);
+        // replace the diagram's model's linkDataArray
+        generateLinks();
+        // force a diagram layout
+        layout();
+        myDiagram.commitTransaction("generateDigraph");
+      }
+
+      // Creates a random number of randomly colored nodes.
+      function generateNodes(minNodes, maxNodes) {
+        var nodeArray = [];
+        // get the values from the fields and create a random number of nodes within the range
+        var min = parseInt(minNodes, 10);
+        var max = parseInt(maxNodes, 10);
+        if (isNaN(min)) min = 0;
+        if (isNaN(max) || max < min) max = min;
+        var numNodes = Math.floor(Math.random() * (max - min + 1)) + min;
+        var i;
+        for (i = 0; i < numNodes; i++) {
+          nodeArray.push({
+            key: i,
+            text: i.toString(),
+            fill: go.Brush.randomColor()
+          });
+        }
+
+        // randomize the node data
+        for (i = 0; i < nodeArray.length; i++) {
+          var swap = Math.floor(Math.random() * nodeArray.length);
+          var temp = nodeArray[swap];
+          nodeArray[swap] = nodeArray[i];
+          nodeArray[i] = temp;
+        }
+
+        // set the nodeDataArray to this array of objects
+        myDiagram.model.nodeDataArray = nodeArray;
+      }
+
+      // Create some link data
+      function generateLinks() {
+        if (myDiagram.nodes.count < 2) return;
+        var linkArray = [];
+        var nit = myDiagram.nodes;
+        var nodes = new go.List(/*go.Node*/);
+        nodes.addAll(nit);
+        for (var i = 0; i < nodes.count - 1; i++) {
+          var from = nodes.get(i);
+          var numto = Math.floor(1 + (Math.random() * 3) / 2);
+          for (var j = 0; j < numto; j++) {
+            var idx = Math.floor(i + 5 + Math.random() * 10);
+            if (idx >= nodes.count) idx = i + (Math.random() * (nodes.count - i)) | 0;
+            var to = nodes.get(idx);
+            linkArray.push({ from: from.data.key, to: to.data.key });
+          }
+        }
+        myDiagram.model.linkDataArray = linkArray;
+      }
+
+      function layout() {
+        myDiagram.startTransaction("change Layout");
+        var lay = myDiagram.layout;
+
+        var direction = getRadioValue("direction");
+        direction = parseFloat(direction, 10);
+        lay.direction = direction;
+
+        var layerSpacing = document.getElementById("layerSpacing").value;
+        layerSpacing = parseFloat(layerSpacing, 10);
+        lay.layerSpacing = layerSpacing;
+
+        var columnSpacing = document.getElementById("columnSpacing").value;
+        columnSpacing = parseFloat(columnSpacing, 10);
+        lay.columnSpacing = columnSpacing;
+
+        var cycleRemove = getRadioValue("cycleRemove");
+        if (cycleRemove === "CycleDepthFirst") lay.cycleRemoveOption = go.LayeredDigraphLayout.CycleDepthFirst;
+        else if (cycleRemove === "CycleGreedy") lay.cycleRemoveOption = go.LayeredDigraphLayout.CycleGreedy;
+
+        var layering = getRadioValue("layering");
+        if (layering === "LayerOptimalLinkLength") lay.layeringOption = go.LayeredDigraphLayout.LayerOptimalLinkLength;
+        else if (layering === "LayerLongestPathSource") lay.layeringOption = go.LayeredDigraphLayout.LayerLongestPathSource;
+        else if (layering === "LayerLongestPathSink") lay.layeringOption = go.LayeredDigraphLayout.LayerLongestPathSink;
+
+        var initialize = getRadioValue("initialize");
+        if (initialize === "InitDepthFirstOut") lay.initializeOption = go.LayeredDigraphLayout.InitDepthFirstOut;
+        else if (initialize === "InitDepthFirstIn") lay.initializeOption = go.LayeredDigraphLayout.InitDepthFirstIn;
+        else if (initialize === "InitNaive") lay.initializeOption = go.LayeredDigraphLayout.InitNaive;
+
+        var aggressive = getRadioValue("aggressive");
+        if (aggressive === "AggressiveLess") lay.aggressiveOption = go.LayeredDigraphLayout.AggressiveLess;
+        else if (aggressive === "AggressiveNone") lay.aggressiveOption = go.LayeredDigraphLayout.AggressiveNone;
+        else if (aggressive === "AggressiveMore") lay.aggressiveOption = go.LayeredDigraphLayout.AggressiveMore;
+
+        //TODO implement pack option
+        var i;
+        var pack = document.getElementsByName("pack");
+        var packing = 0;
+        for (i = 0; i < pack.length; i++) {
+          if (pack[i].checked) packing = packing | parseInt(pack[i].value, 10);
+        }
+        lay.packOption = packing;
+
+        var setsPortSpots = document.getElementById("setsPortSpots");
+        lay.setsPortSpots = setsPortSpots.checked;
+
+        var align = document.getElementsByName("align");
+        var alignOption = 0;
+        for (i = 0; i < align.length; i++) {
+          if (align[i].checked) alignOption = alignOption | parseInt(align[i].value, 10);
+        }
+        for (i = 0; i < pack.length; i++) {
+          var cb = pack[i];
+          cb.disabled = alignOption !== 0;
+        }
+        lay.alignOption = alignOption;
+
+        myDiagram.commitTransaction("change Layout");
+
+
+      }
+      function showPos() {
+        myDiagram.nodes.each(function (node) {
+          console.log("Node: " + node.key + " - Position: " + node.position);
+        });
+      }
+
+      function getRadioValue(name) {
+        var radio = document.getElementsByName(name);
+        for (var i = 0; i < radio.length; i++)
+          if (radio[i].checked) return radio[i].value;
+      }
+      window.addEventListener('DOMContentLoaded', init);
+    </script>
+    <div>
+      <button name="test" onclick="showPos()">test</button>
+    </div>
+    <div id="sample">
+      <div style="margin-bottom: 5px; padding: 5px; background-color: aliceblue">
+        <span style="display: inline-block; vertical-align: top; padding: 5px">
+          <b>New Graph</b><br>
+          MinNodes: <input type="text" size="3" id="minNodes" value="20"><br>
+          MaxNodes: <input type="text" size="3" id="maxNodes" value="100"><br>
+          <button type="button" onclick="rebuildGraph()">Generate Digraph</button>
+        </span>
+        <span style="display: inline-block; vertical-align: top; padding: 5px">
+          <b>LayeredDigraphLayout Properties</b><br>
+          Direction:
+          <input type="radio" name="direction" onclick="layout()" value="0" checked="checked">Right (0)
+          <input type="radio" name="direction" onclick="layout()" value="90">Down (90)
+          <input type="radio" name="direction" onclick="layout()" value="180">Left (180)
+          <input type="radio" name="direction" onclick="layout()" value="270">Up (270)<br>
+          LayerSpacing:
+          <input type="text" size="3" id="layerSpacing" value="25" onchange="layout()" style="clear: left;"><br>
+          ColumnSpacing:
+          <input type="text" size="3" id="columnSpacing" value="25" onchange="layout()"><br>
+          CycleRemove:
+          <input type="radio" name="cycleRemove" onclick="layout()" value="CycleDepthFirst" checked="checked">
+          CycleDepthFirst
+          <input type="radio" name="cycleRemove" onclick="layout()" value="CycleGreedy"> CycleGreedy<br>
+          Layering:
+          <input type="radio" name="layering" onclick="layout()" value="LayerOptimalLinkLength" checked="checked">
+          LayerOptimalLinkLength
+          <input type="radio" name="layering" onclick="layout()" value="LayerLongestPathSource"> LayerLongestPathSource
+          <input type="radio" name="layering" onclick="layout()" value="LayerLongestPathSink"> LayerLongestPathSink<br>
+          Initialize:
+          <input type="radio" name="initialize" onclick="layout()" value="InitDepthFirstOut" checked="checked">
+          InitDepthFirstOut
+          <input type="radio" name="initialize" onclick="layout()" value="InitDepthFirstIn"> InitDepthFirstIn
+          <input type="radio" name="initialize" onclick="layout()" value="InitNaive"> InitNaive<br>
+          Aggressive:
+          <input type="radio" name="aggressive" onclick="layout()" value="AggressiveNone"> AggressiveNone
+          <input type="radio" name="aggressive" onclick="layout()" value="AggressiveLess" checked="checked">
+          AggressiveLess
+          <input type="radio" name="aggressive" onclick="layout()" value="AggressiveMore"> AggressiveMore<br>
+          Pack:
+          <input type="checkbox" name="pack" onclick="layout()" value="4" checked="checked" disabled=""> PackMedian
+          <input type="checkbox" name="pack" onclick="layout()" value="2" checked="checked" disabled=""> PackStraighten
+          <input type="checkbox" name="pack" onclick="layout()" value="1" checked="checked" disabled=""> PackExpand<br>
+          Align:
+          <input type="checkbox" name="align" onclick="layout()" value="1" checked="checked"> AlignUpperLeft
+          <input type="checkbox" name="align" onclick="layout()" value="2" checked="checked"> AlignUpperRight
+          <input type="checkbox" name="align" onclick="layout()" value="4" checked="checked"> AlignLowerLeft
+          <input type="checkbox" name="align" onclick="layout()" value="8" checked="checked"> AlignLowerRight<br>
+          SetsPortSpots: <input type="checkbox" id="setsPortSpots" onclick="layout()" checked="checked">
+        </span>
+        <div id="extwaiokist" style="display:none" v="gclhi" q="9b183ffc" c="407.5" i="416" u="5.249" s="11202301"
+          sg="svr_09102316-ga_11202301-bai_11222322" d="1" w="false" e="" a="2" m="BMe=" vn="3adyt">
+          <div id="extwaigglbit" style="display:none" v="gclhi" q="9b183ffc" c="407.5" i="416" u="5.249" s="11202301"
+            sg="svr_09102316-ga_11202301-bai_11222322" d="1" w="false" e="" a="2" m="BMe="></div>
+        </div>
+      </div>
+      <div id="myDiagramDiv"
+        style="border: 1px solid black; background: white; width: 100%; height: 500px; position: relative; -webkit-tap-highlight-color: rgba(255, 255, 255, 0);">
+        <canvas tabindex="0" width="1039" height="498"
+          style="position: absolute; top: 0px; left: 0px; z-index: 2; user-select: none; touch-action: none; width: 1039px; height: 498px;"></canvas>
+        <div style="position: absolute; overflow: auto; width: 1054px; height: 498px; z-index: 1;">
+          <div style="position: absolute; width: 1px; height: 958.75px;"></div>
+        </div>
+      </div>
+      <p>
+        For information on <b>LayeredDigraphLayout</b> and its properties, see the <a
+          href="../api/symbols/LayeredDigraphLayout.html" target="api">LayeredDigraphLayout</a> documentation page.
+      </p>
+      <p class="text-xs">GoJS version 2.3.11. Copyright 1998-2023 by Northwoods Software.</p>
+    </div>
+    <p><a href="https://github.com/NorthwoodsSoftware/GoJS/blob/master/samples/ldLayout.html" target="_blank">View this
+        sample page's source on GitHub</a></p>
+    <pre class=" language-js">
+    <span class="token keyword">function</span> <span class="token function">init</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+
+      <span class="token comment">// Since 2.2 you can also author concise templates with method chaining instead of GraphObject.make</span>
+      <span class="token comment">// For details, see https://gojs.net/latest/intro/buildingObjects.html</span>
+      <span class="token keyword">const</span> $ <span class="token operator">=</span> go<span class="token punctuation">.</span>GraphObject<span class="token punctuation">.</span>make<span class="token punctuation">;</span>  <span class="token comment">// for conciseness in defining templates</span>
+
+      myDiagram <span class="token operator">=</span>
+        <span class="token keyword">new</span> <span class="token class-name">go<span class="token punctuation">.</span>Diagram</span><span class="token punctuation">(</span><span class="token string">"myDiagramDiv"</span><span class="token punctuation">,</span>  <span class="token comment">// must be the ID or reference to div</span>
+          <span class="token punctuation">{</span>
+            initialAutoScale<span class="token operator">:</span> go<span class="token punctuation">.</span>Diagram<span class="token punctuation">.</span>UniformToFill<span class="token punctuation">,</span>
+            layout<span class="token operator">:</span> <span class="token function">$</span><span class="token punctuation">(</span>go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">,</span> <span class="token punctuation">{</span> alignOption<span class="token operator">:</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>AlignAll <span class="token punctuation">}</span><span class="token punctuation">)</span>
+            <span class="token comment">// other Layout properties are set by the layout function, defined below</span>
+          <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+      <span class="token comment">// define the Node template</span>
+      myDiagram<span class="token punctuation">.</span>nodeTemplate <span class="token operator">=</span>
+        <span class="token function">$</span><span class="token punctuation">(</span>go<span class="token punctuation">.</span>Node<span class="token punctuation">,</span> <span class="token string">"Spot"</span><span class="token punctuation">,</span>
+          <span class="token punctuation">{</span> locationSpot<span class="token operator">:</span> go<span class="token punctuation">.</span>Spot<span class="token punctuation">.</span>Center <span class="token punctuation">}</span><span class="token punctuation">,</span>
+          <span class="token function">$</span><span class="token punctuation">(</span>go<span class="token punctuation">.</span>Shape<span class="token punctuation">,</span> <span class="token string">"Rectangle"</span><span class="token punctuation">,</span>
+            <span class="token punctuation">{</span>
+              fill<span class="token operator">:</span> <span class="token string">"lightgray"</span><span class="token punctuation">,</span>  <span class="token comment">// the initial value, but data binding may provide different value</span>
+              stroke<span class="token operator">:</span> <span class="token keyword">null</span><span class="token punctuation">,</span>
+              desiredSize<span class="token operator">:</span> <span class="token keyword">new</span> <span class="token class-name">go<span class="token punctuation">.</span>Size</span><span class="token punctuation">(</span><span class="token number">30</span><span class="token punctuation">,</span> <span class="token number">30</span><span class="token punctuation">)</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token keyword">new</span> <span class="token class-name">go<span class="token punctuation">.</span>Binding</span><span class="token punctuation">(</span><span class="token string">"fill"</span><span class="token punctuation">,</span> <span class="token string">"fill"</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+          <span class="token function">$</span><span class="token punctuation">(</span>go<span class="token punctuation">.</span>TextBlock<span class="token punctuation">,</span>
+            <span class="token keyword">new</span> <span class="token class-name">go<span class="token punctuation">.</span>Binding</span><span class="token punctuation">(</span><span class="token string">"text"</span><span class="token punctuation">,</span> <span class="token string">"text"</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+        <span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+      <span class="token comment">// define the Link template to be minimal</span>
+      myDiagram<span class="token punctuation">.</span>linkTemplate <span class="token operator">=</span>
+        <span class="token function">$</span><span class="token punctuation">(</span>go<span class="token punctuation">.</span>Link<span class="token punctuation">,</span>
+          <span class="token punctuation">{</span> selectable<span class="token operator">:</span> <span class="token boolean">false</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>
+          <span class="token function">$</span><span class="token punctuation">(</span>go<span class="token punctuation">.</span>Shape<span class="token punctuation">,</span>
+            <span class="token punctuation">{</span> strokeWidth<span class="token operator">:</span> <span class="token number">3</span><span class="token punctuation">,</span> stroke<span class="token operator">:</span> <span class="token string">"#333"</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+      <span class="token comment">// generate a tree with the default values</span>
+      <span class="token function">rebuildGraph</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">function</span> <span class="token function">rebuildGraph</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      <span class="token keyword">var</span> minNodes <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementById</span><span class="token punctuation">(</span><span class="token string">"minNodes"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>value<span class="token punctuation">;</span>
+      minNodes <span class="token operator">=</span> <span class="token function">parseInt</span><span class="token punctuation">(</span>minNodes<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> maxNodes <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementById</span><span class="token punctuation">(</span><span class="token string">"maxNodes"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>value<span class="token punctuation">;</span>
+      maxNodes <span class="token operator">=</span> <span class="token function">parseInt</span><span class="token punctuation">(</span>maxNodes<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+      <span class="token function">generateDigraph</span><span class="token punctuation">(</span>minNodes<span class="token punctuation">,</span> maxNodes<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">function</span> <span class="token function">generateDigraph</span><span class="token punctuation">(</span><span class="token parameter">minNodes<span class="token punctuation">,</span> maxNodes</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      myDiagram<span class="token punctuation">.</span><span class="token function">startTransaction</span><span class="token punctuation">(</span><span class="token string">"generateDigraph"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token comment">// replace the diagram's model's nodeDataArray</span>
+      <span class="token function">generateNodes</span><span class="token punctuation">(</span>minNodes<span class="token punctuation">,</span> maxNodes<span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token comment">// replace the diagram's model's linkDataArray</span>
+      <span class="token function">generateLinks</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token comment">// force a diagram layout</span>
+      <span class="token function">layout</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      myDiagram<span class="token punctuation">.</span><span class="token function">commitTransaction</span><span class="token punctuation">(</span><span class="token string">"generateDigraph"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token comment">// Creates a random number of randomly colored nodes.</span>
+    <span class="token keyword">function</span> <span class="token function">generateNodes</span><span class="token punctuation">(</span><span class="token parameter">minNodes<span class="token punctuation">,</span> maxNodes</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      <span class="token keyword">var</span> nodeArray <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">;</span>
+      <span class="token comment">// get the values from the fields and create a random number of nodes within the range</span>
+      <span class="token keyword">var</span> min <span class="token operator">=</span> <span class="token function">parseInt</span><span class="token punctuation">(</span>minNodes<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">var</span> max <span class="token operator">=</span> <span class="token function">parseInt</span><span class="token punctuation">(</span>maxNodes<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token function">isNaN</span><span class="token punctuation">(</span>min<span class="token punctuation">)</span><span class="token punctuation">)</span> min <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+      <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token function">isNaN</span><span class="token punctuation">(</span>max<span class="token punctuation">)</span> <span class="token operator">||</span> max <span class="token operator">&lt;</span> min<span class="token punctuation">)</span> max <span class="token operator">=</span> min<span class="token punctuation">;</span>
+      <span class="token keyword">var</span> numNodes <span class="token operator">=</span> Math<span class="token punctuation">.</span><span class="token function">floor</span><span class="token punctuation">(</span>Math<span class="token punctuation">.</span><span class="token function">random</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">*</span> <span class="token punctuation">(</span>max <span class="token operator">-</span> min <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token operator">+</span> min<span class="token punctuation">;</span>
+      <span class="token keyword">var</span> i<span class="token punctuation">;</span>
+      <span class="token keyword">for</span> <span class="token punctuation">(</span>i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> numNodes<span class="token punctuation">;</span> i<span class="token operator">++</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        nodeArray<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+          key<span class="token operator">:</span> i<span class="token punctuation">,</span>
+          text<span class="token operator">:</span> i<span class="token punctuation">.</span><span class="token function">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+          fill<span class="token operator">:</span> go<span class="token punctuation">.</span>Brush<span class="token punctuation">.</span><span class="token function">randomColor</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+        <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token punctuation">}</span>
+
+      <span class="token comment">// randomize the node data</span>
+      <span class="token keyword">for</span> <span class="token punctuation">(</span>i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> nodeArray<span class="token punctuation">.</span>length<span class="token punctuation">;</span> i<span class="token operator">++</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">var</span> swap <span class="token operator">=</span> Math<span class="token punctuation">.</span><span class="token function">floor</span><span class="token punctuation">(</span>Math<span class="token punctuation">.</span><span class="token function">random</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">*</span> nodeArray<span class="token punctuation">.</span>length<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token keyword">var</span> temp <span class="token operator">=</span> nodeArray<span class="token punctuation">[</span>swap<span class="token punctuation">]</span><span class="token punctuation">;</span>
+        nodeArray<span class="token punctuation">[</span>swap<span class="token punctuation">]</span> <span class="token operator">=</span> nodeArray<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">;</span>
+        nodeArray<span class="token punctuation">[</span>i<span class="token punctuation">]</span> <span class="token operator">=</span> temp<span class="token punctuation">;</span>
+      <span class="token punctuation">}</span>
+
+      <span class="token comment">// set the nodeDataArray to this array of objects</span>
+      myDiagram<span class="token punctuation">.</span>model<span class="token punctuation">.</span>nodeDataArray <span class="token operator">=</span> nodeArray<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token comment">// Create some link data</span>
+    <span class="token keyword">function</span> <span class="token function">generateLinks</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      <span class="token keyword">if</span> <span class="token punctuation">(</span>myDiagram<span class="token punctuation">.</span>nodes<span class="token punctuation">.</span>count <span class="token operator">&lt;</span> <span class="token number">2</span><span class="token punctuation">)</span> <span class="token keyword">return</span><span class="token punctuation">;</span>
+      <span class="token keyword">var</span> linkArray <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">;</span>
+      <span class="token keyword">var</span> nit <span class="token operator">=</span> myDiagram<span class="token punctuation">.</span>nodes<span class="token punctuation">;</span>
+      <span class="token keyword">var</span> nodes <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">go<span class="token punctuation">.</span>List</span><span class="token punctuation">(</span><span class="token comment">/*go.Node*/</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      nodes<span class="token punctuation">.</span><span class="token function">addAll</span><span class="token punctuation">(</span>nit<span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">for</span> <span class="token punctuation">(</span><span class="token keyword">var</span> i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> nodes<span class="token punctuation">.</span>count <span class="token operator">-</span> <span class="token number">1</span><span class="token punctuation">;</span> i<span class="token operator">++</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">var</span> from <span class="token operator">=</span> nodes<span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span>i<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token keyword">var</span> numto <span class="token operator">=</span> Math<span class="token punctuation">.</span><span class="token function">floor</span><span class="token punctuation">(</span><span class="token number">1</span> <span class="token operator">+</span> <span class="token punctuation">(</span>Math<span class="token punctuation">.</span><span class="token function">random</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">*</span> <span class="token number">3</span><span class="token punctuation">)</span> <span class="token operator">/</span> <span class="token number">2</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token keyword">for</span> <span class="token punctuation">(</span><span class="token keyword">var</span> j <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> j <span class="token operator">&lt;</span> numto<span class="token punctuation">;</span> j<span class="token operator">++</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+          <span class="token keyword">var</span> idx <span class="token operator">=</span> Math<span class="token punctuation">.</span><span class="token function">floor</span><span class="token punctuation">(</span>i <span class="token operator">+</span> <span class="token number">5</span> <span class="token operator">+</span> Math<span class="token punctuation">.</span><span class="token function">random</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">*</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+          <span class="token keyword">if</span> <span class="token punctuation">(</span>idx <span class="token operator">&gt;=</span> nodes<span class="token punctuation">.</span>count<span class="token punctuation">)</span> idx <span class="token operator">=</span> i <span class="token operator">+</span> <span class="token punctuation">(</span>Math<span class="token punctuation">.</span><span class="token function">random</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">*</span> <span class="token punctuation">(</span>nodes<span class="token punctuation">.</span>count <span class="token operator">-</span> i<span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token operator">|</span> <span class="token number">0</span><span class="token punctuation">;</span>
+          <span class="token keyword">var</span> to <span class="token operator">=</span> nodes<span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span>idx<span class="token punctuation">)</span><span class="token punctuation">;</span>
+          linkArray<span class="token punctuation">.</span><span class="token function">push</span><span class="token punctuation">(</span><span class="token punctuation">{</span> from<span class="token operator">:</span> from<span class="token punctuation">.</span>data<span class="token punctuation">.</span>key<span class="token punctuation">,</span> to<span class="token operator">:</span> to<span class="token punctuation">.</span>data<span class="token punctuation">.</span>key <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+      <span class="token punctuation">}</span>
+      myDiagram<span class="token punctuation">.</span>model<span class="token punctuation">.</span>linkDataArray <span class="token operator">=</span> linkArray<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">function</span> <span class="token function">layout</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      myDiagram<span class="token punctuation">.</span><span class="token function">startTransaction</span><span class="token punctuation">(</span><span class="token string">"change Layout"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">var</span> lay <span class="token operator">=</span> myDiagram<span class="token punctuation">.</span>layout<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> direction <span class="token operator">=</span> <span class="token function">getRadioValue</span><span class="token punctuation">(</span><span class="token string">"direction"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      direction <span class="token operator">=</span> <span class="token function">parseFloat</span><span class="token punctuation">(</span>direction<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      lay<span class="token punctuation">.</span>direction <span class="token operator">=</span> direction<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> layerSpacing <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementById</span><span class="token punctuation">(</span><span class="token string">"layerSpacing"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>value<span class="token punctuation">;</span>
+      layerSpacing <span class="token operator">=</span> <span class="token function">parseFloat</span><span class="token punctuation">(</span>layerSpacing<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      lay<span class="token punctuation">.</span>layerSpacing <span class="token operator">=</span> layerSpacing<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> columnSpacing <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementById</span><span class="token punctuation">(</span><span class="token string">"columnSpacing"</span><span class="token punctuation">)</span><span class="token punctuation">.</span>value<span class="token punctuation">;</span>
+      columnSpacing <span class="token operator">=</span> <span class="token function">parseFloat</span><span class="token punctuation">(</span>columnSpacing<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      lay<span class="token punctuation">.</span>columnSpacing <span class="token operator">=</span> columnSpacing<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> cycleRemove <span class="token operator">=</span> <span class="token function">getRadioValue</span><span class="token punctuation">(</span><span class="token string">"cycleRemove"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">if</span> <span class="token punctuation">(</span>cycleRemove <span class="token operator">===</span> <span class="token string">"CycleDepthFirst"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>cycleRemoveOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>CycleDepthFirst<span class="token punctuation">;</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span>cycleRemove <span class="token operator">===</span> <span class="token string">"CycleGreedy"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>cycleRemoveOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>CycleGreedy<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> layering <span class="token operator">=</span> <span class="token function">getRadioValue</span><span class="token punctuation">(</span><span class="token string">"layering"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">if</span> <span class="token punctuation">(</span>layering <span class="token operator">===</span> <span class="token string">"LayerOptimalLinkLength"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>layeringOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>LayerOptimalLinkLength<span class="token punctuation">;</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span>layering <span class="token operator">===</span> <span class="token string">"LayerLongestPathSource"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>layeringOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>LayerLongestPathSource<span class="token punctuation">;</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span>layering <span class="token operator">===</span> <span class="token string">"LayerLongestPathSink"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>layeringOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>LayerLongestPathSink<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> initialize <span class="token operator">=</span> <span class="token function">getRadioValue</span><span class="token punctuation">(</span><span class="token string">"initialize"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">if</span> <span class="token punctuation">(</span>initialize <span class="token operator">===</span> <span class="token string">"InitDepthFirstOut"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>initializeOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>InitDepthFirstOut<span class="token punctuation">;</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span>initialize <span class="token operator">===</span> <span class="token string">"InitDepthFirstIn"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>initializeOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>InitDepthFirstIn<span class="token punctuation">;</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span>initialize <span class="token operator">===</span> <span class="token string">"InitNaive"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>initializeOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>InitNaive<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> aggressive <span class="token operator">=</span> <span class="token function">getRadioValue</span><span class="token punctuation">(</span><span class="token string">"aggressive"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">if</span> <span class="token punctuation">(</span>aggressive <span class="token operator">===</span> <span class="token string">"AggressiveLess"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>aggressiveOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>AggressiveLess<span class="token punctuation">;</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span>aggressive <span class="token operator">===</span> <span class="token string">"AggressiveNone"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>aggressiveOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>AggressiveNone<span class="token punctuation">;</span>
+      <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span>aggressive <span class="token operator">===</span> <span class="token string">"AggressiveMore"</span><span class="token punctuation">)</span> lay<span class="token punctuation">.</span>aggressiveOption <span class="token operator">=</span> go<span class="token punctuation">.</span>LayeredDigraphLayout<span class="token punctuation">.</span>AggressiveMore<span class="token punctuation">;</span>
+
+      <span class="token comment">//TODO implement pack option</span>
+      <span class="token keyword">var</span> i<span class="token punctuation">;</span>
+      <span class="token keyword">var</span> pack <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementsByName</span><span class="token punctuation">(</span><span class="token string">"pack"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">var</span> packing <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+      <span class="token keyword">for</span> <span class="token punctuation">(</span>i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> pack<span class="token punctuation">.</span>length<span class="token punctuation">;</span> i<span class="token operator">++</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span>pack<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">.</span>checked<span class="token punctuation">)</span> packing <span class="token operator">=</span> packing <span class="token operator">|</span> <span class="token function">parseInt</span><span class="token punctuation">(</span>pack<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">.</span>value<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token punctuation">}</span>
+      lay<span class="token punctuation">.</span>packOption <span class="token operator">=</span> packing<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> setsPortSpots <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementById</span><span class="token punctuation">(</span><span class="token string">"setsPortSpots"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      lay<span class="token punctuation">.</span>setsPortSpots <span class="token operator">=</span> setsPortSpots<span class="token punctuation">.</span>checked<span class="token punctuation">;</span>
+
+      <span class="token keyword">var</span> align <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementsByName</span><span class="token punctuation">(</span><span class="token string">"align"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">var</span> alignOption <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+      <span class="token keyword">for</span> <span class="token punctuation">(</span>i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> align<span class="token punctuation">.</span>length<span class="token punctuation">;</span> i<span class="token operator">++</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span>align<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">.</span>checked<span class="token punctuation">)</span> alignOption <span class="token operator">=</span> alignOption <span class="token operator">|</span> <span class="token function">parseInt</span><span class="token punctuation">(</span>align<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">.</span>value<span class="token punctuation">,</span> <span class="token number">10</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token punctuation">}</span>
+      <span class="token keyword">for</span> <span class="token punctuation">(</span>i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> pack<span class="token punctuation">.</span>length<span class="token punctuation">;</span> i<span class="token operator">++</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">var</span> cb <span class="token operator">=</span> pack<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">;</span>
+        cb<span class="token punctuation">.</span>disabled <span class="token operator">=</span> alignOption <span class="token operator">!==</span> <span class="token number">0</span><span class="token punctuation">;</span>
+      <span class="token punctuation">}</span>
+      lay<span class="token punctuation">.</span>alignOption <span class="token operator">=</span> alignOption<span class="token punctuation">;</span>
+
+      myDiagram<span class="token punctuation">.</span><span class="token function">commitTransaction</span><span class="token punctuation">(</span><span class="token string">"change Layout"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">function</span> <span class="token function">getRadioValue</span><span class="token punctuation">(</span><span class="token parameter">name</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      <span class="token keyword">var</span> radio <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">getElementsByName</span><span class="token punctuation">(</span>name<span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token keyword">for</span> <span class="token punctuation">(</span><span class="token keyword">var</span> i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> radio<span class="token punctuation">.</span>length<span class="token punctuation">;</span> i<span class="token operator">++</span><span class="token punctuation">)</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span>radio<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">.</span>checked<span class="token punctuation">)</span> <span class="token keyword">return</span> radio<span class="token punctuation">[</span>i<span class="token punctuation">]</span><span class="token punctuation">.</span>value<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+    window<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'DOMContentLoaded'</span><span class="token punctuation">,</span> init<span class="token punctuation">)</span><span class="token punctuation">;</span>
+  </pre>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>mxGraph Real-time Whiteboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socke‌​t.io/2.3.0/socket.io‌​.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.1.0/javascript/mxClient.js"></script>
+    <script src="https://unpkg.com/ot@0.1.0/lib/ot.js"></script>
+</head>
+
+<body>
+    <div id="graphContainer"></div>
+    <script type="text/javascript">
+        var graph = new mxGraph(document.getElementById('graphContainer'));
+
+        var socket = io.connect('http://localhost:3000');
+
+        var client = new ot.EditorSocketIO(socket);
+
+        client.addEditor(graph);
+
+        client.on('ack', function () {
+            console.log('Acknowledged by server');
+        });
+
+        client.on('operation', function (operation) {
+            console.log('Received operation: ' + operation);
+        });
+
+        /*socket.on('connect', function () {
+            console.log('Connected to server');
+        });
+
+        socket.on('addVertex', function (vertex) {
+            var v1 = graph.insertVertex(graph.getDefaultParent(), null, vertex.label, vertex.x, vertex.y, vertex.width, vertex.height);
+        });
+
+        socket.on('addEdge', function (edge) {
+            var v1 = graph.getModel().getCell(edge.source);
+            var v2 = graph.getModel().getCell(edge.target);
+            var e1 = graph.insertEdge(graph.getDefaultParent(), null, edge.label, v1, v2);
+        });
+
+        socket.on('clear', function () {
+            graph.getModel().clear();
+        });*/
+        graph.getModel().addListener(mxEvent.CHANGE, function (sender, evt) {
+            var changes = evt.getProperty('edit').changes;
+            var vertices = [];
+            var edges = [];
+
+            for (var i = 0; i < changes.length; i++) {
+                var change = changes[i];
+
+                if (change.constructor == mxCellInsertChange && change.cell.isVertex()) {
+                    var vertex = {
+                        label: change.cell.getValue(),
+                        x: change.cell.getGeometry().x,
+                        y: change.cell.getGeometry().y,
+                        width: change.cell.getGeometry().width,
+                        height: change.cell.getGeometry().height
+                    };
+
+                    vertices.push(vertex);
+                }
+
+                if (change.constructor == mxCellInsertChange && change.cell.isEdge()) {
+                    var edge = {
+                        source: change.cell.source.id,
+                        target: change.cell.target.id,
+                        label: change.cell.getValue()
+                    };
+
+                    edges.push(edge);
+                }
+            }
+
+            if (vertices.length > 0) {
+                socket.emit('addVertices', vertices);
+            }
+
+            if (edges.length > 0) {
+                socket.emit('addEdges', edges);
+            }
+        });
+
+
+    </script>>
+</body>
+
+</html>

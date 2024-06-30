@@ -1,0 +1,132 @@
+<!--
+  Copyright (c) 2006-2018, JGraph Ltd
+  
+  Hello, World! example for mxGraph. This example demonstrates using
+  a DOM node to create a graph and adding vertices and edges.
+-->
+<html>
+
+<head>
+	<title>Hello, World! example for mxGraph</title>
+
+	<!-- Sets the basepath for the library if not in same directory -->
+
+
+	<!-- Loads and initializes the library -->
+	<script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+	<!-- Example code -->
+	<script type="text/javascript">
+
+		// 创建自定义的mxGraph扩展类
+		function CustomGraph(container) {
+			mxGraph.call(this, container);
+		}
+
+		// 继承mxGraph类
+		CustomGraph.prototype = Object.create(mxGraph.prototype);
+		CustomGraph.prototype.constructor = CustomGraph;
+
+		var func = mxGraph.prototype.moveCells;
+		// 重写节点移动的方法
+		CustomGraph.prototype.moveCells = function (cells, dx, dy, clone, target, evt) {
+			// 调用父类的moveCells方法
+			result = func.call(this, cells, dx, dy, clone, target, evt);
+
+			// 更新连线的控制点
+			this.updateEdgeControlPoints(cells);
+			console.log("moveCells");
+			return result;
+		};
+
+		// 更新连线的控制点
+		CustomGraph.prototype.updateEdgeControlPoints = function (cells) {
+			var model = this.getModel();
+
+			// 遍历所有移动的节点
+			for (var i = 0; i < cells.length; i++) {
+				var cell = cells[i];
+
+				// 获取与节点相关的连线
+				var edges = model.getEdges(cell);
+
+				// 遍历连线并更新控制点
+				for (var j = 0; j < edges.length; j++) {
+					var edge = edges[j];
+
+					// 更新控制点位置
+					this.updateEdgeControlPoint(edge);
+				}
+			}
+		};
+
+		// 更新单个连线的控制点
+		CustomGraph.prototype.updateEdgeControlPoint = function (edge) {
+			// 获取连线的源节点和目标节点
+			var source = edge.getTerminal(true);
+			var target = edge.getTerminal(false);
+
+			// 更新控制点位置
+			var geo = this.getCellGeometry(edge);
+			if (geo.points) {
+				geo.points[0] = new mxPoint(source.geometry.x + source.geometry.width / 2, source.geometry.y + source.geometry.height / 2);
+				geo.points[1] = new mxPoint(target.geometry.x + target.geometry.width / 2, target.geometry.y + target.geometry.height / 2);
+			}
+		};
+
+
+		// Program starts here. Creates a sample graph in the
+		// DOM node with the specified ID. This function is invoked
+		// from the onLoad event handler of the document (see below).
+
+		function main(container) {
+			// Checks if the browser is supported
+			if (!mxClient.isBrowserSupported()) {
+				// Displays an error message if the browser is not supported.
+				mxUtils.error('Browser is not supported!', 200, false);
+			}
+			else {
+				// Disables the built-in context menu
+				//mxEvent.disableContextMenu(container);
+
+				// Creates the graph inside the given container
+				//var graph = new mxGraph(container);
+
+				var graph = new CustomGraph(container);
+
+				// Enables rubberband selection
+				//new mxRubberband(graph);
+
+				// Gets the default parent for inserting new cells. This
+				// is normally the first child of the root (ie. layer 0).
+				var parent = graph.getDefaultParent();
+
+				// Adds cells to the model in a single step
+				graph.getModel().beginUpdate();
+				try {
+					var v1 = graph.insertVertex(parent, null, 'A,', 20, 20, 80, 30);
+					var v2 = graph.insertVertex(parent, null, 'B!', 200, 150, 80, 30);
+					var v3 = graph.insertVertex(parent, null, 'C!', 20, 200, 80, 30);
+					var v4 = graph.insertVertex(parent, null, 'D!', 200, 400, 80, 30);
+					var e1 = graph.insertEdge(parent, null, '', v1, v2);
+					var e2 = graph.insertEdge(parent, null, '', v1, v3);
+					var e3 = graph.insertEdge(parent, null, '', v1, v4);
+				}
+				finally {
+					// Updates the display
+					graph.getModel().endUpdate();
+				}
+			}
+		};
+	</script>
+</head>
+
+<!-- Page passes the container for the graph to the program -->
+
+<body onload="main(document.getElementById('graphContainer'))">
+
+	<!-- Creates a container for the graph with a grid wallpaper -->
+	<div id="graphContainer" style="position:relative;overflow:hidden;width:800px;height:600px;cursor:default;">
+	</div>
+</body>
+
+</html>

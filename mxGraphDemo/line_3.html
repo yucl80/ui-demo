@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smooth Bezier Curve with mxGraph</title>
+    <script src="https://cdn.jsdelivr.net/npm/mxgraph@4.2.2/javascript/mxClient.js"></script>
+</head>
+<body>
+    <div id="graphContainer" style="width:500px;height:500px;border:1px solid #000;"></div>
+    <script>
+        // 创建 mxGraph 实例
+        const container = document.getElementById('graphContainer');
+        const graph = new mxGraph(container);
+
+        // 禁用网格
+        graph.setGridEnabled(false);
+
+        // 获取图形模型
+        const model = graph.getModel();
+
+        // 定义两个端点
+        const startPoint = { x: 250, y: 450 };
+        const endPoint = { x: 350, y: 150 };
+
+        // 自动生成控制点
+        let controlPoint1, controlPoint2;
+        const dx = endPoint.x - startPoint.x;
+        const dy = endPoint.y - startPoint.y;
+
+        if (Math.abs(dx) >= Math.abs(dy)) {
+            // 如果两端点的连线更像一条横线，创建横向贝塞尔曲线
+            const controlOffset = dx / 8;
+
+            controlPoint1 = {
+                x: startPoint.x + dx / 3,
+                y: startPoint.y - controlOffset
+            };
+            controlPoint2 = {
+                x: startPoint.x + 2 * dx / 3,
+                y: startPoint.y + controlOffset
+            };
+        } else {
+            // 如果两端点的连线更像一条竖线，创建垂直贝塞尔曲线
+            const controlOffset = dy / 8;
+
+            controlPoint1 = {
+                x: startPoint.x - controlOffset,
+                y: startPoint.y + dy / 3
+            };
+
+            controlPoint2 = {
+                x: startPoint.x + controlOffset,
+                y: startPoint.y + 2 * dy / 3
+            };
+        }
+
+        // 扩展 mxGraph 的连线样式
+        mxEdgeStyle.CustomBezier = function(state, source, target, points, result) {
+            const pt1 = points[0];
+            const pt2 = points[1];
+            const pts = [new mxPoint(state.getCenterX(source), state.getCenterY(source)), pt1, pt2, new mxPoint(state.getCenterX(target), state.getCenterY(target))];
+            mxUtils.addPoints(result, pts);
+        };
+
+        // 注册自定义样式
+        mxStyleRegistry.putValue('customBezier', mxEdgeStyle.CustomBezier);
+
+        // 开始事务
+        model.beginUpdate();
+        try {
+            // 创建顶点
+            const v1 = graph.insertVertex(graph.getDefaultParent(), null, '', startPoint.x, startPoint.y, 0, 0);
+            const v2 = graph.insertVertex(graph.getDefaultParent(), null, '', endPoint.x, endPoint.y, 0, 0);
+
+            // 创建贝塞尔曲线边
+            const e1 = graph.insertEdge(graph.getDefaultParent(), null, '', v1, v2, 'edgeStyle=customBezier;curved=1;');
+
+            // 设置控制点
+            e1.geometry.points = [
+                new mxPoint(controlPoint1.x, controlPoint1.y),
+                new mxPoint(controlPoint2.x, controlPoint2.y)
+            ];
+        } finally {
+            // 结束事务
+            model.endUpdate();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <script lang="javascript">
+        function test() {
+            // 检查浏览器是否支持 Clipboard APIA/*  */
+            if (navigator.clipboard) {
+                // 异步读取剪贴板内容
+                navigator.clipboard.read().then((items) => {
+                    // 遍历剪贴板项目
+                    items.forEach((item) => {
+                        // 检查每个项目的类型
+                        item.types.forEach((type) => {
+                            console.log(`Clipboard item type: ${type}`);
+                            if (type.startsWith('image/')) {
+                                console.log('剪贴板中的内容是图片');
+                            } else if (type === 'text/plain') {
+                                console.log('剪贴板中的内容是纯文本');
+                                item.getType('text/plain').then((blob) => {
+                                    blob.text().then((text) => {
+                                        console.log(`Text content: ${text}`);
+                                    });
+                                });
+                            } else if (type === 'text/html') {
+                                console.log('剪贴板中的内容是HTML');
+                                item.getType('text/html').then((blob) => {
+                                    blob.text().then((html) => {
+                                        console.log(`HTML content: ${html}`);
+                                    });
+                                });
+                            } else {
+                                console.log(`剪贴板中包含其他类型的内容: ${type}`);
+                            }
+                        });
+                    });
+                }).catch((error) => {
+                    console.error('读取剪贴板内容时出错:', error);
+                });
+            } else {
+                console.error('当前浏览器不支持 Clipboard API');
+            }
+        }
+
+    </script>
+
+</head>
+
+<body>
+    <button onclick="test()"> test </button>
+
+</body>
+
+</html>

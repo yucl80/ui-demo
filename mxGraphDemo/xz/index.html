@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Realtime collaboration using mxGraph and OT.js</title>
+  <script src="https://cdn.jsdelivr.net/npm/@opentok/client@2.20.0/dist/opentok.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ot/0.11.0/ot.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+  <script src="https://unpkg.com/mxgraph-js@4.2.1/dist/js/mxClient.js"></script>
+  <script src="app.js"></script>
+  <style>
+    #graphContainer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+    }
+
+    #sessionControls {
+      position: absolute;
+      left: 20px;
+      top: 20px;
+      z-index: 1;
+    }
+
+    #sessionId {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="graphContainer"></div>
+  <div id="sessionControls">
+    <div>
+      <label>Session ID:</label>
+      <input type="text" id="sessionId" value="">
+    </div>
+    <div>
+      <button id="connectButton">Connect</button>
+      <button id="disconnectButton" disabled>Disconnect</button>
+    </div>
+  </div>
+</body>
+</html>
